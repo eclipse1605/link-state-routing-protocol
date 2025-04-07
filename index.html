@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link-State Routing Simulation</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <div class="toolbar-group left-group">
+                <button id="addNode" class="tool-button" title="Add a new router node (N)">
+                    <i class="fas fa-plus"></i> Add Node
+                </button>
+                <button id="addEdge" class="tool-button" title="Add a connection between nodes (E)">
+                    <i class="fas fa-link"></i> Add Edge
+                </button>
+                <div class="edge-type-selector">
+                    <span>Edge Type:</span>
+                    <select id="edgeTypeSelector" title="Select type of connection to create">
+                        <option value="double" selected>Bidirectional</option>
+                        <option value="single">Unidirectional</option>
+                    </select>
+                </div>
+                <button id="removeNode" class="tool-button" disabled title="Remove selected node (Delete)">
+                    <i class="fas fa-trash"></i> Remove Node
+                </button>
+            </div>
+            <div class="toolbar-group center-group">
+                <button id="startHello" class="tool-button" title="Start/Stop Hello Phase (Space)">
+                    <i class="fas fa-play"></i> Start Hello Phase
+                </button>
+                <button id="startLSA" class="tool-button" disabled title="Start LSA Flooding">
+                    <i class="fas fa-play"></i> Start Flooding
+                </button>
+            </div>
+            <div class="toolbar-group right-group">
+                <button id="toggleLogs" class="tool-button" title="Show/hide network logs">
+                    <i class="fas fa-terminal"></i> Network Logs
+                    <span class="log-badge">0</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <canvas id="networkCanvas"></canvas>
+            
+            <div class="node-details">
+                <div class="details-section">
+                    <h3><i class="fas fa-info-circle"></i> Node Details</h3>
+                    <div id="nodeInfo">No node selected</div>
+                </div>
+                
+                <div class="details-section">
+                    <h3><i class="fas fa-route"></i> Routing Table</h3>
+                    <div id="routingTable">No routing information available</div>
+                </div>
+            </div>
+            
+            <div class="canvas-controls">
+                <button id="clearNetwork" class="tool-button" title="Clear all nodes and edges (C)">
+                    <i class="fas fa-trash-alt"></i> Clear Network
+                </button>
+                <button id="resetView" class="tool-button" title="Reset view to fit all nodes (V)">
+                    <i class="fas fa-expand"></i> Reset View
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="history-controls">
+        <button id="undoButton" class="history-button" title="Undo (Ctrl+Z)" disabled>
+            <i class="fas fa-undo"></i>
+        </button>
+        <button id="redoButton" class="history-button" title="Redo (Ctrl+Y)" disabled>
+            <i class="fas fa-redo"></i>
+        </button>
+    </div>
+
+    <script src="js/logger.js"></script>
+    <script src="js/node.js"></script>
+    <script src="js/network.js"></script>
+    <script src="js/visualization.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
