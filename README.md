@@ -112,7 +112,3 @@ The simulator implements the Link-State Routing protocol with the following comp
    ```
    http://localhost:5000
    ```
-
-## License
-
-This project is open source and available under the MIT License. 
