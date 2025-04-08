@@ -53,18 +53,15 @@ class Network {
             return false;
         }
         
-        
         node1.neighbors.set(node2Id, { weight: weight });
         node1.lsa_seq++;
         node1.lsa_db[node2Id] = { weight: weight, timestamp: Date.now() };
-        
         
         if (isBidirectional) {
             node2.neighbors.set(node1Id, { weight: weight });
             node2.lsa_seq++;
             node2.lsa_db[node1Id] = { weight: weight, timestamp: Date.now() };
         }
-        
         
         this.logger.log('EDGE', `Connected Router ${node1Id} to Router ${node2Id}`, { 
             weight, 

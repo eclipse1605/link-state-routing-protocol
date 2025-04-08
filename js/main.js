@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const node = nodeMap.get(nodeData.id);
             if (node){
                 node.neighbors.clear();
+                node.lsa_db = {};
             }
         }
         
@@ -68,7 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const neighbor of nodeData.neighbors){
                     const neighborNode = nodeMap.get(neighbor.id);
                     if (neighborNode){
-                        node.neighbors.set(neighbor.id, { weight: neighbor.weight });
+                        node.neighbors.set(neighbor.id, { 
+                            weight: neighbor.weight,
+                            lastUpdate: Date.now()
+                        });
+                        node.lsa_db[neighbor.id] = { 
+                            weight: neighbor.weight, 
+                            timestamp: Date.now() 
+                        };
                     }
                 }
             }
