@@ -1250,4 +1250,89 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    function exportNetwork() {
+        const networkState = {
+            nodes: Array.from(network.nodes.entries()).map(([id, node]) => ({
+                id: node.id,
+                x: node.x,
+                y: node.y,
+                neighbors: Array.from(node.neighbors.entries()).map(([neighborId, data]) => ({
+                    id: neighborId,
+                    weight: data.weight
+                }))
+            })),
+            nextNodeId: network.nextNodeId
+        };
+
+        const jsonString = JSON.stringify(networkState, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'network_state.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importNetwork(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const networkState = JSON.parse(e.target.result);
+                
+                network.nodes.clear();
+                network.selectedNode = null;
+                network.helloPackets = [];
+                network.lsaPackets = [];
+                network.nextNodeId = networkState.nextNodeId;
+                
+                const nodeMap = new Map();
+                for (const nodeData of networkState.nodes) {
+                    const node = network.addNode(nodeData.x, nodeData.y, nodeData.id);
+                    nodeMap.set(nodeData.id, node);
+                }
+                
+                for (const nodeData of networkState.nodes) {
+                    const node = nodeMap.get(nodeData.id);
+                    if (node) {
+                        for (const neighbor of nodeData.neighbors) {
+                            const neighborNode = nodeMap.get(neighbor.id);
+                            if (neighborNode) {
+                                network.connectNodes(node.id, neighborNode.id, neighbor.weight);
+                            }
+                        }
+                    }
+                }
+                
+                visualization.render();
+                saveState();
+                network.logger.log('NETWORK', 'Network imported successfully');
+            } catch (error) {
+                network.logger.log('ERROR', 'Failed to import network: ' + error.message);
+                alert('Failed to import network: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    document.getElementById('exportNetwork').addEventListener('click', exportNetwork);
+    
+    const importInput = document.createElement('input');
+    importInput.type = 'file';
+    importInput.accept = '.json';
+    importInput.style.display = 'none';
+    document.body.appendChild(importInput);
+    
+    document.getElementById('importNetwork').addEventListener('click', () => {
+        importInput.click();
+    });
+    
+    importInput.addEventListener('change', importNetwork);
 }); 
