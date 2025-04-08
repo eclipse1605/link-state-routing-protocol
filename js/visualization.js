@@ -643,27 +643,24 @@ class Visualization {
     }
 
     drawPackets() {
-        
+        // Draw hello packets
         for (const packet of this.network.helloPackets) {
             const sourceNode = this.network.nodes.get(packet.sourceId);
             const targetNode = this.network.nodes.get(packet.targetId);
             
-            if (sourceNode && targetNode) {
+            if (sourceNode && targetNode && sourceNode.neighbors.has(targetNode.id)) {
                 const startX = sourceNode.x;
                 const startY = sourceNode.y;
                 const endX = targetNode.x;
                 const endY = targetNode.y;
                 
-                
                 const currentX = startX + (endX - startX) * packet.progress;
                 const currentY = startY + (endY - startY) * packet.progress;
-                
                 
                 this.ctx.beginPath();
                 this.ctx.arc(currentX, currentY, 5, 0, Math.PI * 2);
                 this.ctx.fillStyle = '#4CAF50'; 
                 this.ctx.fill();
-                
                 
                 this.ctx.beginPath();
                 this.ctx.moveTo(startX, startY);
@@ -673,40 +670,43 @@ class Visualization {
             }
         }
         
-        
+        // Draw LSA packets
         for (const packet of this.network.lsaPackets) {
-            const sourceNode = this.network.nodes.get(packet.sourceId);
+            const receivedFromNode = this.network.nodes.get(packet.receivedFrom);
             const targetNode = this.network.nodes.get(packet.targetId);
             
-            if (sourceNode && targetNode) {
-                const startX = sourceNode.x;
-                const startY = sourceNode.y;
+            // Only draw if there's an actual edge between the nodes
+            if (receivedFromNode && targetNode && 
+                receivedFromNode.neighbors.has(targetNode.id) && 
+                targetNode.neighbors.has(receivedFromNode.id)) {
+                
+                const startX = receivedFromNode.x;
+                const startY = receivedFromNode.y;
                 const endX = targetNode.x;
                 const endY = targetNode.y;
-                
                 
                 const currentX = startX + (endX - startX) * packet.progress;
                 const currentY = startY + (endY - startY) * packet.progress;
                 
-                
+                // Draw the packet
                 this.ctx.beginPath();
                 this.ctx.arc(currentX, currentY, 6, 0, Math.PI * 2);
                 this.ctx.fillStyle = '#2196F3'; 
                 this.ctx.fill();
                 
-                
+                // Draw the trail
                 this.ctx.beginPath();
                 this.ctx.moveTo(startX, startY);
                 this.ctx.lineTo(currentX, currentY);
                 this.ctx.strokeStyle = 'rgba(33, 150, 243, 0.3)'; 
                 this.ctx.stroke();
                 
-                
+                // Draw the sequence number
                 this.ctx.fillStyle = '#fff';
                 this.ctx.font = '10px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-                this.ctx.fillText(packet.sequenceNumber, currentX, currentY);
+                this.ctx.fillText(packet.lsa.sourceId, currentX, currentY);
             }
         }
     }

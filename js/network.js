@@ -21,6 +21,7 @@ class Network {
         this.helloPhaseComplete = false;
         this.lsaPhaseComplete = false;
         this.isPaused = false;
+        this.maxAge = 0;  // Will be set based on network size
     }
 
     addNode(x, y, explicitId = null) {
@@ -133,30 +134,71 @@ class Network {
     }
 
     startHelloPhase() {
-        this.resetSimulationState();
+        // Clear all packets and state from previous phases
+        this.helloPackets = [];
+        this.lsaPackets = [];
+        this.lsaSeenMap = new Map();
+        this.lsaSequenceNumber = 1;
+        
+        // Reset simulation state
         this.simulationPhase = 'hello';
         this.isSimulationRunning = true;
         this.isPaused = false;
         this.nodesInOrder = Array.from(this.nodes.values());
         this.currentNodeIndex = 0;
         this.helloPhaseComplete = false;
+        this.lsaPhaseComplete = false;  // Ensure LSA phase is marked as not complete
         
+        // Preserve the network topology but reset routing tables
         for (const node of this.nodes.values()) {
             node.routingTable.clear();
+            node.isActive = true;
         }
         
         this.logger.log('NETWORK', 'Starting Hello packet phase');
     }
 
     startLSAPhase() {
-        this.resetSimulationState(false); 
         this.simulationPhase = 'lsa';
         this.isSimulationRunning = true;
         this.isPaused = false;
-        this.nodesInOrder = Array.from(this.nodes.values());
-        this.currentNodeIndex = 0;
+        this.lsaPackets = [];
         this.lsaPhaseComplete = false;
-        this.lsaSeenMap = new Map();
+        
+        // Reset LSA state for all nodes
+        for (const node of this.nodes.values()) {
+            node.lsa_db = {};  // Clear LSA database
+            node.received_lsas = new Set();  // Track which LSAs we've seen
+        }
+        
+        // Each router creates its initial LSA and sends to neighbors
+        for (const node of this.nodes.values()) {
+            // Create LSA containing router ID and neighbor information
+            const lsa = {
+                sourceId: node.id,  // Router ID
+                sequenceNumber: 1,   // First LSA from this router
+                neighbors: Array.from(node.neighbors.entries())
+                    .map(([neighborId, data]) => ({
+                        id: neighborId,
+                        cost: data.weight
+                    }))
+            };
+            
+            // Router stores its own LSA
+            node.lsa_db[node.id] = lsa;
+            node.received_lsas.add(`${node.id}-1`);
+            
+            // Send to all neighbors
+            for (const [neighborId, _] of node.neighbors) {
+                this.lsaPackets.push({
+                    lsa: lsa,
+                    targetId: neighborId,
+                    receivedFrom: node.id,
+                    progress: 0
+                });
+            }
+        }
+        
         this.logger.log('NETWORK', 'Starting LSA flooding phase');
     }
 
@@ -208,31 +250,35 @@ class Network {
         if (this.helloPhaseComplete) {
             this.stopSimulation();
             this.logger.log('NETWORK', 'Hello phase complete, ready for routing table updates');
-            
             return;
         }
 
-        
         if (this.helloPackets.length === 0) {
-            
             const currentNode = this.nodesInOrder[this.currentNodeIndex];
             if (currentNode && currentNode.isActive) {
-                
-                for (const [neighborId, _] of currentNode.neighbors) {
+                for (const [neighborId, data] of currentNode.neighbors) {
+                    // Send hello packet
                     this.helloPackets.push({
                         sourceId: currentNode.id,
                         targetId: neighborId,
                         progress: 0,
                         type: 'hello'
                     });
+                    
+                    // Ensure the reverse connection is maintained
+                    const neighborNode = this.nodes.get(neighborId);
+                    if (neighborNode && !neighborNode.neighbors.has(currentNode.id)) {
+                        neighborNode.neighbors.set(currentNode.id, { weight: data.weight });
+                        neighborNode.lsa_seq++;
+                        neighborNode.lsa_db[currentNode.id] = { weight: data.weight, timestamp: Date.now() };
+                    }
+                    
                     this.logger.log('PACKET', `Hello packet sent from Router ${currentNode.id} to Router ${neighborId}`);
                 }
             }
 
-            
             this.currentNodeIndex++;
             if (this.currentNodeIndex >= this.nodesInOrder.length) {
-                
                 if (this.helloPackets.length === 0) {
                     this.helloPhaseComplete = true;
                 }
@@ -247,53 +293,67 @@ class Network {
             return;
         }
 
-        
-        if (this.lsaPackets.length === 0) {
+        // Process all LSA packets
+        for (let i = this.lsaPackets.length - 1; i >= 0; i--) {
+            const packet = this.lsaPackets[i];
+            packet.progress += 0.01;
             
-            const currentNode = this.nodesInOrder[this.currentNodeIndex];
-            if (currentNode && currentNode.isActive) {
+            if (packet.progress >= 1) {
+                const targetNode = this.nodes.get(packet.targetId);
                 
-                const sequenceNumber = this.lsaSequenceNumber++;
-                const lsaPacket = {
-                    sourceId: currentNode.id,
-                    sequenceNumber: sequenceNumber,
-                    neighbors: Array.from(currentNode.neighbors.entries())
-                        .map(([id, data]) => ({ nodeId: id, weight: data.weight }))
-                };
-
-                
-                if (!this.lsaSeenMap) {
-                    this.lsaSeenMap = new Map();
+                // Only process if target exists
+                if (targetNode) {
+                    const lsa = packet.lsa;
+                    const key = `${lsa.sourceId}-${lsa.sequenceNumber}`;
+                    
+                    // If we haven't seen this LSA before
+                    if (!targetNode.received_lsas.has(key)) {
+                        // Store the LSA
+                        targetNode.received_lsas.add(key);
+                        targetNode.lsa_db[lsa.sourceId] = lsa;
+                        
+                        // Forward to all neighbors except the one we got it from
+                        for (const [neighborId, _] of targetNode.neighbors) {
+                            if (neighborId !== packet.receivedFrom) {
+                                this.lsaPackets.push({
+                                    lsa: lsa,
+                                    targetId: neighborId,
+                                    receivedFrom: targetNode.id,
+                                    progress: 0
+                                });
+                            }
+                        }
+                    }
                 }
                 
-                const lsaKey = `${currentNode.id}-${sequenceNumber}`;
-                
-                this.lsaSeenMap.set(lsaKey, new Set([currentNode.id]));
-                
-                for (const [neighborId, _] of currentNode.neighbors) {
-                    this.lsaPackets.push({
-                        ...lsaPacket,
-                        targetId: neighborId,
-                        progress: 0,
-                        type: 'lsa',
-                        originalSource: currentNode.id, 
-                        sender: currentNode.id 
-                    });
-                    this.logger.log('PACKET', `LSA packet #${lsaPacket.sequenceNumber} sent from Router ${currentNode.id} to Router ${neighborId}`);
-                }
+                // Remove processed packet
+                this.lsaPackets.splice(i, 1);
             }
+        }
 
+        // Check if flooding is complete (no more packets and all nodes have all LSAs)
+        if (this.lsaPackets.length === 0) {
+            const complete = Array.from(this.nodes.values()).every(node => {
+                // Each node should have LSAs from every other node
+                return Array.from(this.nodes.keys()).every(otherId => 
+                    // Skip self or inactive nodes
+                    otherId === node.id || node.lsa_db[otherId] !== undefined
+                );
+            });
             
-            this.currentNodeIndex++;
-            if (this.currentNodeIndex >= this.nodesInOrder.length) {
-                
+            if (complete) {
+                // All nodes have complete topology - calculate routes
+                for (const node of this.nodes.values()) {
+                    node.routingTable = this.calculateShortestPaths(node.id);
+                }
                 this.lsaPhaseComplete = true;
+                this.logger.log('NETWORK', 'All nodes have complete topology information');
             }
         }
     }
 
     updatePackets() {
-        
+        // Process hello packets
         for (let i = this.helloPackets.length - 1; i >= 0; i--) {
             const packet = this.helloPackets[i];
             packet.progress += 0.01;
@@ -301,106 +361,24 @@ class Network {
             if (packet.progress >= 1) {
                 const targetNode = this.nodes.get(packet.targetId);
                 if (targetNode) {
-                    
-                    const sourceNeighbors = Array.from(this.nodes.get(packet.sourceId).neighbors.entries())
-                        .map(([id, data]) => ({ nodeId: id, weight: data.weight }));
-                    
-                    targetNode.processHelloPacket({
-                        sourceId: packet.sourceId,
-                        timestamp: Date.now(),
-                        neighbors: sourceNeighbors
-                    });
-                    
-                    
-                    targetNode.updateRoutingTable();
-                    
-                    
-                    const newRoutingTable = this.calculateShortestPaths(targetNode.id);
-                    targetNode.routingTable = newRoutingTable;
-                    
-                    
-                    if (this.selectedNode && this.selectedNode.id === targetNode.id) {
-                        this.selectedNodeNeedsUpdate = true;
+                    const sourceNode = this.nodes.get(packet.sourceId);
+                    if (sourceNode) {
+                        const sourceNeighbors = Array.from(sourceNode.neighbors.entries())
+                            .map(([id, data]) => ({ nodeId: id, weight: data.weight }));
+                        
+                        targetNode.processHelloPacket({
+                            sourceId: packet.sourceId,
+                            timestamp: Date.now(),
+                            neighbors: sourceNeighbors
+                        });
                     }
                 }
-                this.logger.log('PACKET', `Hello packet from Router ${packet.sourceId} to Router ${packet.targetId} delivered`);
                 this.helloPackets.splice(i, 1);
+                this.logger.log('PACKET', `Hello packet from Router ${packet.sourceId} to Router ${packet.targetId} delivered`);
             }
         }
 
-        
-        if (!this.lsaSeenMap) {
-            this.lsaSeenMap = new Map();
-        }
-
-        
-        for (let i = this.lsaPackets.length - 1; i >= 0; i--) {
-            const packet = this.lsaPackets[i];
-            packet.progress += 0.005;
-            
-            if (packet.progress >= 1) {
-                const targetNode = this.nodes.get(packet.targetId);
-                if (!targetNode) {
-                    this.lsaPackets.splice(i, 1);
-                    continue;
-                }
-                
-                const originalSource = packet.originalSource || packet.sourceId;
-                const sender = packet.sourceId; 
-                
-                const lsaKey = `${originalSource}-${packet.sequenceNumber}`;
-                
-                if (!this.lsaSeenMap.has(lsaKey)) {
-                    this.lsaSeenMap.set(lsaKey, new Set());
-                }
-                
-                const seenNodes = this.lsaSeenMap.get(lsaKey);
-                
-                if (seenNodes.has(targetNode.id)) {
-                    this.lsaPackets.splice(i, 1);
-                    continue;
-                }
-                
-                seenNodes.add(targetNode.id);
-                
-                
-                const wasProcessed = targetNode.processLSA(originalSource, packet.sequenceNumber, packet.neighbors);
-                
-                if (wasProcessed) {
-                    
-                    for (const [neighborId, _] of targetNode.neighbors) {
-                        if (neighborId !== sender && !seenNodes.has(neighborId)) {
-                            this.lsaPackets.push({
-                                sourceId: targetNode.id, 
-                                targetId: neighborId,
-                                progress: 0,
-                                type: 'lsa',
-                                sequenceNumber: packet.sequenceNumber,
-                                neighbors: packet.neighbors,
-                                originalSource: originalSource,
-                                sender: targetNode.id 
-                            });
-                            this.logger.log('PACKET', `LSA packet #${packet.sequenceNumber} forwarded from Router ${targetNode.id} to Router ${neighborId}`);
-                        }
-                    }
-                    
-                    
-                    targetNode.updateRoutingTable();
-                    
-                    
-                    const newRoutingTable = this.calculateShortestPaths(targetNode.id);
-                    targetNode.routingTable = newRoutingTable;
-                    
-                    
-                    if (this.selectedNode && this.selectedNode.id === targetNode.id) {
-                        this.selectedNodeNeedsUpdate = true;
-                    }
-                }
-                
-                
-                this.lsaPackets.splice(i, 1);
-            }
-        }
+        // Process LSA packets is now handled in processLSAPhase
     }
 
     updateRoutingTables() {
@@ -596,6 +574,7 @@ class Network {
     }
 
     resetSimulationState(clearRoutingTables = true) {
+        // Reset only simulation-specific state
         this.simulationPhase = 'none';
         this.currentNodeIndex = 0;
         this.nodesInOrder = [];
@@ -605,15 +584,40 @@ class Network {
         this.lsaPackets = [];
         this.convergenceCounter = 0;
         this.isConverged = false;
-        this.lsaSeenMap = new Map(); 
+        this.lsaSeenMap = new Map();
         this.isPaused = false;
         
+        // Optionally clear routing tables without affecting network topology
         if (clearRoutingTables) {
             for (const node of this.nodes.values()) {
                 node.routingTable.clear();
+                node.isActive = true;
             }
         }
         
         this.logger.log('NETWORK', 'Simulation state reset');
+    }
+
+    // Add this helper method to determine which nodes are reachable
+    getReachableNodes(startNodeId) {
+        const visited = new Set();
+        const queue = [startNodeId];
+        visited.add(startNodeId);
+        
+        while (queue.length > 0) {
+            const currentNodeId = queue.shift();
+            const currentNode = this.nodes.get(currentNodeId);
+            
+            if (currentNode && currentNode.isActive) {
+                for (const [neighborId, _] of currentNode.neighbors) {
+                    if (!visited.has(neighborId)) {
+                        visited.add(neighborId);
+                        queue.push(neighborId);
+                    }
+                }
+            }
+        }
+        
+        return visited;
     }
 } 
