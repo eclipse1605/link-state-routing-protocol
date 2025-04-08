@@ -15,6 +15,10 @@ class Node {
         this.lsa_db = {};
     }
 
+    get isIsolated() {
+        return this.neighbors.size === 0;
+    }
+
     addNeighbor(nodeId, weight) {
         this.neighbors.set(nodeId, {
             weight: weight,
@@ -71,24 +75,27 @@ class Node {
         const sourceId = packet.sourceId;
 
         
-        for (const neighbor of packet.neighbors) {
-            if (neighbor.nodeId === this.id) {
-                
-                this.neighbors.set(sourceId, {
-                    weight: neighbor.weight,
-                    lastUpdate: currentTime
-                });
-                
-                
-                if (!this.lsa_db[sourceId] || !this.lsa_db[sourceId].neighbors) {
-                    this.lsa_db[sourceId] = {
-                        seq: 1,
-                        neighbors: packet.neighbors,
-                        timestamp: currentTime
-                    };
-                }
+        
+        
+        
+        
+        if (this.neighbors.has(sourceId)) {
+            const existingNeighbor = this.neighbors.get(sourceId);
+            existingNeighbor.lastUpdate = currentTime;
+            
+            
+            if (!this.lsa_db[sourceId] || !this.lsa_db[sourceId].neighbors) {
+                this.lsa_db[sourceId] = {
+                    seq: 1,
+                    neighbors: packet.neighbors,
+                    timestamp: currentTime
+                };
             }
         }
+        
+        
+        
+        
 
         
         for (const [nodeId, data] of this.neighbors) {
@@ -125,9 +132,9 @@ class Node {
                 neighbors: neighbors, 
                 timestamp: Date.now()
             };
-            return true;
+            return true; 
         }
-        return false;
+        return false; 
     }
 
     generateLSA() {

@@ -22,6 +22,13 @@ class Visualization {
         this.draggedNode = null;
         this.dragOffset = { x: 0, y: 0 };
 
+        
+        this.nodeNormalColor = '#4287f5';
+        this.nodeHighlightColor = '#f54242';
+        this.nodeSelectedColor = '#42f54e';
+        this.nodeDragColor = '#f5a742';
+        this.nodeIsolatedColor = '#808080'; 
+
         this.setupEventListeners();
         this.resizeCanvas();
     }
@@ -127,9 +134,6 @@ class Visualization {
             this.draggedNode.y = pos.y + this.dragOffset.y;
             
             
-            const margin = this.nodeRadius;
-            this.draggedNode.x = Math.max(margin, Math.min(this.canvas.width / this.scale - margin, this.draggedNode.x));
-            this.draggedNode.y = Math.max(margin, Math.min(this.canvas.height / this.scale - margin, this.draggedNode.y));
             
             this.render();
         } else if (this.edgeCreationState.isActive && this.edgeCreationState.sourceNode) {
@@ -144,7 +148,6 @@ class Visualization {
             this.lastMousePos = { x: event.clientX, y: event.clientY };
             this.render();
         } else if (!this.edgeCreationState.isActive && !this.isAddingNode) {
-            
             
             this.canvas.style.cursor = hoverNode ? 'pointer' : 'grab';
         } else if (hoverNode) {
@@ -172,22 +175,39 @@ class Visualization {
             this.canvas.style.cursor = 'grab';
         }
 
+        
         if (this.edgeCreationState.isActive && this.edgeCreationState.sourceNode) {
             const pos = this.getCanvasPosition(event.clientX, event.clientY);
             const targetNode = this.getNodeAtPosition(pos.x, pos.y);
             
+            
             if (targetNode && targetNode !== this.edgeCreationState.sourceNode) {
-                if (!this.network.edgeExists(this.edgeCreationState.sourceNode.id, targetNode.id)) {
-                    
-                    const sourceId = this.edgeCreationState.sourceNode.id;
-                    const targetId = targetNode.id;
-                    
+                const sourceId = this.edgeCreationState.sourceNode.id;
+                const targetId = targetNode.id;
+                
+                
+                const edgeTypeSelector = document.getElementById('edgeTypeSelector');
+                const isBidirectional = edgeTypeSelector.value === 'double';
+                
+                
+                let isRedundant = false;
+                
+                
+                if (isBidirectional) {
+                    isRedundant = this.network.edgeExists(sourceId, targetId) || 
+                                  this.network.edgeExists(targetId, sourceId);
+                } 
+                
+                else {
+                    isRedundant = this.network.edgeExists(sourceId, targetId);
+                }
+                
+                if (!isRedundant) {
                     
                     const weightDialog = document.querySelector('.weight-dialog');
                     const overlay = document.querySelector('.overlay');
                     const weightInput = document.getElementById('weightInput');
                     const confirmBtn = document.getElementById('confirmWeight');
-                    const edgeTypeSelector = document.getElementById('edgeTypeSelector');
                     
                     weightDialog.style.display = 'block';
                     overlay.style.display = 'block';
@@ -198,12 +218,10 @@ class Visualization {
                     const handleConfirm = () => {
                         const weight = parseInt(weightInput.value);
                         if (!isNaN(weight) && weight > 0) {
-                            const isBidirectional = edgeTypeSelector.value === 'double';
                             this.network.connectNodes(sourceId, targetId, weight, isBidirectional);
                             this.render();
                             weightDialog.style.display = 'none';
                             overlay.style.display = 'none';
-                            
                             
                             if (this.network.selectedNode) {
                                 this.updateNodeDetails(this.network.selectedNode);
@@ -213,15 +231,16 @@ class Visualization {
                         }
                     };
                     
-                    
                     const newConfirmBtn = confirmBtn.cloneNode(true);
                     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-                    
                     
                     newConfirmBtn.addEventListener('click', handleConfirm);
                     weightInput.addEventListener('keypress', (e) => {
                         if (e.key === 'Enter') handleConfirm();
                     });
+                } else {
+                    
+                    this.network.logger.log('ERROR', `Edge already exists between Router ${sourceId} and Router ${targetId}`);
                 }
             }
             
@@ -367,77 +386,115 @@ class Visualization {
             return;
         }
         
-        
         removeNodeBtn.disabled = false;
         
         
-        nodeInfo.innerHTML = `
-            <div class="node-header">
-                <span class="status-indicator ${node.isActive ? 'status-active' : 'status-inactive'}"></span>
+        let html = `
+            <div>
                 <strong>Router ${node.id}</strong>
             </div>
-            <div class="node-info-content">
-                <div class="info-row">
-                    <i class="fas fa-map-marker-alt"></i>
-                    Position: (${Math.round(node.x)}, ${Math.round(node.y)})
-                </div>
-                <div class="info-row">
-                    <i class="fas fa-users"></i>
-                    Neighbors: ${node.neighbors.size}
-                </div>
-                <div class="info-row">
-                    <i class="fas fa-sync"></i>
-                    LSA Sequence: ${node.lsa_seq}
-                </div>
-                <div class="info-row">
-                    <i class="fas fa-database"></i>
-                    LSA Database Size: ${Object.keys(node.lsa_db).length}
-                </div>
+            <div>
+                Network: 10.0.${node.id}.0/24
+            </div>
+            <div>
+                Router IP: 10.0.${node.id}.1
+            </div>
+            <div>
+                Position: (${Math.round(node.x)}, ${Math.round(node.y)})
+            </div>
+            <div>
+                Neighbors: ${node.neighbors.size}
+            </div>
+            <div>
+                LSA Sequence: ${node.lsa_seq}
+            </div>
+            <div>
+                LSA Database Size: ${Object.keys(node.lsa_db).length}
             </div>
             <div class="neighbor-list">
-                <h3><i class="fas fa-users"></i> Neighbors</h3>
-                ${Array.from(node.neighbors.entries()).map(([neighborId, data]) => `
+                <h3>Neighbors</h3>
+        `;
+        
+        
+        if (node.neighbors.size > 0) {
+            for (const [neighborId, data] of node.neighbors.entries()) {
+                html += `
                     <div class="neighbor-item">
-                        <div class="neighbor-info">
-                            <i class="fas fa-network-wired"></i>
-                            Router ${neighborId}
-                            <span class="weight">Weight: ${data.weight}</span>
+                        <div>
+                            Router ${neighborId} (10.0.${neighborId}.0/24)
+                            <span>Weight: ${data.weight}</span>
                         </div>
-                        <div class="neighbor-actions">
-                            <button class="edit-weight-btn" onclick="updateEdgeWeight(${node.id}, ${neighborId})">
-                                <i class="fas fa-edit"></i>
+                        <div>
+                            <button onclick="updateEdgeWeight(${node.id}, ${neighborId})">
+                                Edit
                             </button>
-                            <button class="delete-edge-btn" onclick="deleteEdge(${node.id}, ${neighborId})">
-                                <i class="fas fa-trash"></i>
+                            <button onclick="deleteEdge(${node.id}, ${neighborId})">
+                                Delete
                             </button>
                         </div>
                     </div>
-                `).join('')}
-            </div>
+                `;
+            }
+        } else {
+            html += '<div>No neighbors connected</div>';
+        }
+        
+        html += '</div>';
+        nodeInfo.innerHTML = html;
+        
+        
+        let rtHtml = `<h3>Routing Table</h3>`;
+        
+        
+        rtHtml += `
+            <table border="1" cellpadding="5" style="width:100%">
+                <tr>
+                    <th>Destination</th>
+                    <th>Netmask</th>
+                    <th>Gateway</th>
+                    <th>Interface</th>
+                </tr>
+                <tr>
+                    <td>10.0.${node.id}.0</td>
+                    <td>255.255.255.0</td>
+                    <td>10.0.${node.id}.1</td>
+                    <td>eth0</td>
+                </tr>
         `;
         
         
-        routingTable.innerHTML = `
-            <div class="routing-table-content">
-                ${Array.from(node.routingTable.entries()).map(([destId, route]) => `
-                    <div class="route-entry">
-                        <div class="route-header">
-                            <i class="fas fa-network-wired"></i>
-                            Router ${destId}
-                            <span class="cost">Cost: ${route.cost}</span>
-                        </div>
-                        <div class="route-path">
-                            <i class="fas fa-route"></i>
-                            Path: ${route.path.join(' → ')}
-                        </div>
-                        <div class="route-next-hop">
-                            <i class="fas fa-arrow-right"></i>
-                            Next Hop: Router ${route.nextHop}
-                        </div>
+        if (node.routingTable.size > 0) {
+            for (const [destId, route] of node.routingTable.entries()) {
+                rtHtml += `
+                    <tr>
+                        <td>10.0.${destId}.0</td>
+                        <td>255.255.255.0</td>
+                        <td>${route.nextHop === node.id ? '10.0.' + node.id + '.1' : '10.0.' + route.nextHop + '.1'}</td>
+                        <td>eth0</td>
+                    </tr>
+                `;
+            }
+        }
+        
+        rtHtml += `</table>`;
+        
+        
+        if (node.routingTable.size > 0) {
+            rtHtml += `<h3>Path Information</h3>`;
+            for (const [destId, route] of node.routingTable.entries()) {
+                rtHtml += `
+                    <div style="margin-bottom:10px">
+                        <div>Router ${destId} (10.0.${destId}.0/24) - Cost: ${route.cost}</div>
+                        <div>Path: ${route.path.join(' → ')}</div>
+                        <div>Next Hop: Router ${route.nextHop} (10.0.${route.nextHop}.1)</div>
                     </div>
-                `).join('')}
-            </div>
-        `;
+                `;
+            }
+        } else {
+            rtHtml += `<div>No routes available</div>`;
+        }
+        
+        routingTable.innerHTML = rtHtml;
     }
 
     render() {
@@ -477,12 +534,26 @@ class Visualization {
     drawNode(node) {
         this.ctx.beginPath();
         this.ctx.arc(node.x, node.y, this.nodeRadius, 0, Math.PI * 2);
-        this.ctx.fillStyle = node === this.network.selectedNode ? '#4CAF50' : '#2d2d2d';
+        
+        
+        if (node.isIsolated) {
+            this.ctx.fillStyle = '#808080'; 
+            this.ctx.strokeStyle = '#555555';
+            this.ctx.setLineDash([5, 2]); 
+        } else if (node === this.network.selectedNode) {
+            this.ctx.fillStyle = '#4CAF50'; 
+            this.ctx.strokeStyle = '#000';
+            this.ctx.setLineDash([]); 
+        } else {
+            this.ctx.fillStyle = '#2d2d2d'; 
+            this.ctx.strokeStyle = node.isActive ? '#4CAF50' : '#666';
+            this.ctx.setLineDash([]); 
+        }
+        
         this.ctx.fill();
-        this.ctx.strokeStyle = node.isActive ? '#4CAF50' : '#666';
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
-        
+        this.ctx.setLineDash([]); 
         
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '14px Arial';
@@ -521,34 +592,43 @@ class Visualization {
             const angle = Math.atan2(dy, dx);
             
             
-            const nodeRadius = 20;
-            const arrowX = node2.x - Math.cos(angle) * nodeRadius * 1.3;
-            const arrowY = node2.y - Math.sin(angle) * nodeRadius * 1.3;
+            const midX = (node1.x + node2.x) / 2;
+            const midY = (node1.y + node2.y) / 2;
+            
+            
+            const arrowSize = 20;
             
             
             this.ctx.beginPath();
-            this.ctx.moveTo(arrowX, arrowY);
+            this.ctx.moveTo(midX + arrowSize/2 * Math.cos(angle), midY + arrowSize/2 * Math.sin(angle));
             this.ctx.lineTo(
-                arrowX - 10 * Math.cos(angle - Math.PI/6),
-                arrowY - 10 * Math.sin(angle - Math.PI/6)
+                midX - arrowSize/2 * Math.cos(angle - Math.PI/6),
+                midY - arrowSize/2 * Math.sin(angle - Math.PI/6)
             );
             this.ctx.lineTo(
-                arrowX - 10 * Math.cos(angle + Math.PI/6),
-                arrowY - 10 * Math.sin(angle + Math.PI/6)
+                midX - arrowSize/2 * Math.cos(angle + Math.PI/6),
+                midY - arrowSize/2 * Math.sin(angle + Math.PI/6)
             );
             this.ctx.closePath();
-            this.ctx.fillStyle = '#666';
+            this.ctx.fillStyle = '#666'; 
             this.ctx.fill();
+            this.ctx.strokeStyle = '#444'; 
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
         }
         
         
         const midX = (node1.x + node2.x) / 2;
         const midY = (node1.y + node2.y) / 2;
+        
+        
+        const weightOffsetY = !isBidirectional ? 15 : 0;
+        
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(weight.toString(), midX, midY);
+        this.ctx.fillText(weight.toString(), midX, midY - weightOffsetY);
     }
 
     drawEdgePreview(sourceNode, targetPos) {
@@ -636,5 +716,35 @@ class Visualization {
         this.scale = this.defaultScale;
         this.offset = { x: 700, y: 300 };
         this.render();
+    }
+
+    updateNodeStyle(nodeId) {
+        const node = this.network.nodes.get(nodeId);
+        const nodeElem = this.svg.select(`#node-${nodeId}`);
+        
+        if (!nodeElem.empty()) {
+            
+            if (node.isIsolated) {
+                nodeElem.select('circle')
+                    .attr('fill', this.nodeIsolatedColor)
+                    .attr('stroke', '#555555')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '5,2');
+            } else if (nodeId === this.selectedNodeId) {
+                
+                nodeElem.select('circle')
+                    .attr('fill', this.nodeSelectedColor)
+                    .attr('stroke', '#000')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', null);
+            } else {
+                
+                nodeElem.select('circle')
+                    .attr('fill', this.nodeNormalColor)
+                    .attr('stroke', '#000')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', null);
+            }
+        }
     }
 } 

@@ -14,4 +14,4 @@ def serve_static(path):
 if __name__ == '__main__':
     current_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(current_dir)
-    app.run(debug=True, port=5000) 
+    app.run(debug=True, port=5000)

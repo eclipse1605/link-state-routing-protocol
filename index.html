@@ -35,11 +35,17 @@
                 <button id="startLSA" class="tool-button" disabled title="Start LSA Flooding">
                     <i class="fas fa-play"></i> Start Flooding
                 </button>
+                <button id="pauseSimulation" class="tool-button" disabled title="Pause/Resume Simulation (P)">
+                    <i class="fas fa-pause"></i> Pause
+                </button>
             </div>
             <div class="toolbar-group right-group">
                 <button id="toggleLogs" class="tool-button" title="Show/hide network logs">
                     <i class="fas fa-terminal"></i> Network Logs
                     <span class="log-badge">0</span>
+                </button>
+                <button id="viewAdjacencyList" class="tool-button" title="View Network Adjacency List">
+                    <i class="fas fa-project-diagram"></i> Show Topology
                 </button>
             </div>
         </div>
@@ -77,6 +83,19 @@
         <button id="redoButton" class="history-button" title="Redo (Ctrl+Y)" disabled>
             <i class="fas fa-redo"></i>
         </button>
+    </div>
+
+    
+    <div id="adjacencyListModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Network Topology</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="adjacencyListContent"></div>
+            </div>
+        </div>
     </div>
 
     <script src="js/logger.js"></script>

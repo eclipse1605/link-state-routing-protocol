@@ -1,4 +1,3 @@
-
 body {
     margin: 0;
     padding: 0;
@@ -374,6 +373,8 @@ body {
     background: #2d2d2d;
     border-radius: 4px;
     padding: 15px;
+    overflow: hidden;
+    word-wrap: break-word;
 }
 
 .details-section h3 {
@@ -427,12 +428,19 @@ body {
     background: #333;
     border-radius: 4px;
     margin-bottom: 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .neighbor-info {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .weight {
@@ -461,31 +469,49 @@ body {
 }
 
 .route-entry {
-    background: #333;
+    background: #2d2d2d;
     border-radius: 4px;
-    padding: 10px;
-    margin-bottom: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    overflow: hidden;
+    word-wrap: break-word;
 }
 
 .route-header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
 }
 
-.route-path, .route-next-hop {
+.route-destination {
+    font-weight: bold;
+    color: #4CAF50;
+    font-size: 13px;
+}
+
+.route-cost {
+    color: #888;
+    font-size: 12px;
+}
+
+.route-details {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.route-path {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: #888;
-    font-size: 0.9em;
-    margin-top: 4px;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 3px;
+    font-size: 11px;
 }
 
-.cost {
-    color: #4CAF50;
-    margin-left: auto;
+.route-next-hop {
+    font-size: 11px;
 }
 
 #nodeInfo, #routingTable {
@@ -498,51 +524,6 @@ body {
     align-items: center;
     gap: 10px;
     margin-right: 10px;
-}
-
-
-.route-entry {
-    background: #2d2d2d;
-    border-radius: 4px;
-    padding: 12px;
-    margin-bottom: 8px;
-}
-
-.route-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.route-destination {
-    font-weight: bold;
-    color: #4CAF50;
-}
-
-.route-cost {
-    color: #888;
-}
-
-.route-details {
-    font-size: 13px;
-    color: #ccc;
-}
-
-.route-path {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-}
-
-.path-arrow {
-    color: #666;
-}
-
-.route-next-hop {
-    color: #4CAF50;
-    font-weight: bold;
 }
 
 .no-route {
@@ -718,4 +699,219 @@ body {
     background-color: #3d3d3d;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+    position: relative;
+    background-color: #1e1e1e;
+    margin: 5% auto;
+    padding: 0;
+    border: 1px solid #444;
+    width: 70%;
+    max-width: 800px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    animation: modalFadeIn 0.3s;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes modalFadeIn {
+    from {opacity: 0; transform: translateY(-20px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+
+.modal-header {
+    padding: 15px 20px;
+    background-color: #333;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #4CAF50;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 60px);
+}
+
+.close-modal {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-modal:hover {
+    color: #4CAF50;
+}
+
+.adjacency-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    color: #ddd;
+}
+
+.adjacency-list-table th {
+    background-color: #333;
+    text-align: left;
+    padding: 10px;
+    border-bottom: 2px solid #444;
+}
+
+.adjacency-list-table td {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+}
+
+.adjacency-list-table tr:last-child td {
+    border-bottom: none;
+}
+
+.adjacency-list-table .direction-indicator {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    margin-left: 5px;
+}
+
+.adjacency-list-table .bidirectional {
+    background-color: #2e7d32;
+}
+
+.adjacency-list-table .unidirectional {
+    background-color: #c62828;
+}
+
+.adjacency-list-empty {
+    padding: 20px;
+    text-align: center;
+    color: #888;
+    font-style: italic;
+}
+
+.route-status {
+    background-color: #2e7d32;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    text-align: center;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+}
+
+
+.routing-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 12px;
+    color: #ddd;
+    table-layout: fixed;
+}
+
+.routing-table th {
+    background-color: #333;
+    text-align: left;
+    padding: 8px;
+    border-bottom: 2px solid #444;
+    font-weight: 600;
+}
+
+.routing-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #444;
+    word-wrap: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.routing-table tr:hover {
+    background-color: #2a2a2a;
+}
+
+.routing-table tr:last-child td {
+    border-bottom: none;
+}
+
+.path-info-header {
+    font-size: 14px;
+    font-weight: bold;
+    margin: 15px 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #444;
+    color: #4CAF50;
+}
+
+.no-neighbors, .no-route {
+    color: #666;
+    font-style: italic;
+    padding: 8px;
+    text-align: center;
+}
+
+.path-arrow {
+    color: #666;
+    font-size: 10px;
+}
+
+.routing-table-content {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.route-next-hop, .route-path {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.routing-table {
+    font-size: 11px;
+}
+
+.ip-info {
+    color: #5DADE2;
+    font-size: 11px;
+    margin-top: 3px;
+    margin-left: 22px;
+}
+
+.details-section-title {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #4CAF50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 } 

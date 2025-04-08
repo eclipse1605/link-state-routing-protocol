@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('networkCanvas');
     const network = new Network();
     const visualization = new Visualization(canvas, network);
+    const logger = network.logger;
     
     visualization.resetView();
 
@@ -166,6 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const addNodeBtn = document.getElementById('addNode');
     const addEdgeBtn = document.getElementById('addEdge');
     const removeNodeBtn = document.getElementById('removeNode');
+    const pauseSimulationBtn = document.getElementById('pauseSimulation');
+    const viewAdjacencyListBtn = document.getElementById('viewAdjacencyList');
 
     
     function updateDisabledButtonTooltip(button, reason){
@@ -186,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateDisabledButtonTooltip(removeNodeBtn, 'Cannot remove nodes during simulation');
             updateDisabledButtonTooltip(undoButton, 'Cannot undo during simulation');
             updateDisabledButtonTooltip(redoButton, 'Cannot redo during simulation');
+            updateDisabledButtonTooltip(pauseSimulationBtn, 'Cannot pause during simulation');
         } else {
             if (addNodeBtn.disabled && !isAddingNode){
                 updateDisabledButtonTooltip(addNodeBtn, 'Currently adding edge');
@@ -203,6 +207,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
             }
             
+            if (pauseSimulationBtn.disabled){
+                updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
+            }
+            
             updateDisabledButtonTooltip(undoButton, 'No actions to undo');
             updateDisabledButtonTooltip(redoButton, 'No actions to redo');
         }
@@ -216,16 +224,119 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        
-        if (network.simulationPhase !== 'lsa' && !network.helloPhaseComplete){
-            routingTableDiv.innerHTML = '<div class="no-route">Routing tables will be available after Hello phase completes</div>';
-            return;
-        }
-
         let html = '';
         if (node.routingTable.size === 0){
             html = '<div class="no-route">No routes available</div>';
         } else {
+            if (network.isSimulationRunning && network.simulationPhase === 'hello') {
+                html += '<div class="route-status">Live Routing Table (Hello Phase in Progress)</div>';
+            }
+            
+            
+            html += `
+                <table class="routing-table">
+                    <thead>
+                        <tr>
+                            <th>Network destination</th>
+                            <th>Netmask</th>
+                            <th>Gateway</th>
+                            <th>Interface</th>
+                            <th>Metric</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            
+            html += `
+                <tr>
+                    <td>127.0.0.0</td>
+                    <td>255.0.0.0</td>
+                    <td>127.0.0.1</td>
+                    <td>lo0</td>
+                    <td>1</td>
+                </tr>
+                <tr>
+                    <td>127.0.0.1</td>
+                    <td>255.255.255.255</td>
+                    <td>127.0.0.1</td>
+                    <td>lo0</td>
+                    <td>1</td>
+                </tr>
+                <tr>
+                    <td>10.0.${node.id}.0</td>
+                    <td>255.255.255.0</td>
+                    <td>10.0.${node.id}.1</td>
+                    <td>eth0</td>
+                    <td>0</td>
+                </tr>
+                <tr>
+                    <td>10.0.${node.id}.1</td>
+                    <td>255.255.255.255</td>
+                    <td>10.0.${node.id}.1</td>
+                    <td>eth0</td>
+                    <td>0</td>
+                </tr>
+            `;
+            
+            
+            for (const [neighborId, neighborData] of node.neighbors) {
+                html += `
+                    <tr>
+                        <td>10.0.${neighborId}.1</td>
+                        <td>255.255.255.255</td>
+                        <td>10.0.${node.id}.1</td>
+                        <td>eth0</td>
+                        <td>${neighborData.weight}</td>
+                    </tr>
+                `;
+            }
+            
+            
+            for (const [destId, route] of node.routingTable){
+                const destNode = network.nodes.get(destId);
+                if (!destNode) continue;
+                
+                const nextHopId = route.nextHop;
+                const nextHopNode = nextHopId ? network.nodes.get(nextHopId) : null;
+                const costDisplay = route.cost === Infinity ? '∞' : route.cost;
+                
+                
+                
+                const gatewayIP = nextHopId ? 
+                    (node.neighbors.has(nextHopId) ? `10.0.${nextHopId}.1` : `10.0.${route.path[1]}.1`) : 
+                    '-';
+                
+                html += `
+                    <tr>
+                        <td>10.0.${destId}.0</td>
+                        <td>255.255.255.0</td>
+                        <td>${gatewayIP}</td>
+                        <td>${nextHopId ? 'eth0' : '-'}</td>
+                        <td>${costDisplay}</td>
+                    </tr>
+                `;
+            }
+            
+            
+            html += `
+                <tr>
+                    <td>0.0.0.0</td>
+                    <td>0.0.0.0</td>
+                    <td>10.0.${node.id}.254</td>
+                    <td>eth0</td>
+                    <td>10</td>
+                </tr>
+            `;
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            
+            html += `<div class="path-info-header">Path Information</div>`;
+            
             for (const [destId, route] of node.routingTable){
                 const costDisplay = route.cost === Infinity ? 
                     '<span class="infinity-symbol">∞</span>' : route.cost;
@@ -239,9 +350,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="route-details">
                             <div class="route-path">
                                 Path: ${route.path.map(id => `Router ${id}`).join(' <span class="path-arrow">→</span> ')}
-                            </div>
-                            <div class="route-next-hop">
-                                Next Hop: ${route.nextHop ? `Router ${route.nextHop}` : 'None'}
                             </div>
                         </div>
                     </div>
@@ -352,6 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
         removeNodeBtn.disabled = isSimulationRunning || !network.selectedNode;
         undoButton.disabled = isSimulationRunning || history.past.length === 0;
         redoButton.disabled = isSimulationRunning || history.future.length === 0;
+        pauseSimulationBtn.disabled = !isSimulationRunning;
         
         
         [addNodeBtn, addEdgeBtn, clearNetworkBtn, resetViewBtn].forEach(btn => {
@@ -502,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
     startHelloBtn.addEventListener('click', () => {
-        if (network.isSimulationRunning){
+        if (network.isSimulationRunning) {
             
             network.stopSimulation();
             startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
@@ -511,11 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
             
             
-            addNodeBtn.disabled = false;
-            addEdgeBtn.disabled = false;
-            clearNetworkBtn.disabled = false;
-            resetViewBtn.disabled = false;
-            removeNodeBtn.disabled = !network.selectedNode;
+            updateButtonStates(false);
             
             
             isAddingNode = false;
@@ -528,8 +633,6 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.classList.remove('node-adding', 'edge-adding');
             canvas.style.cursor = 'grab';  
             
-            
-            updateAllDisabledTooltips();
             startHelloBtn.setAttribute('title', 'Start Hello Phase (Space)');
         } else {
             
@@ -540,11 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateDisabledButtonTooltip(startLSABtn, 'Hello Phase is running');
             
             
-            addNodeBtn.disabled = true;
-            addEdgeBtn.disabled = true;
-            clearNetworkBtn.disabled = true;
-            resetViewBtn.disabled = true;
-            removeNodeBtn.disabled = true;
+            updateButtonStates(true);
             
             
             isAddingNode = false;
@@ -555,10 +654,8 @@ document.addEventListener('DOMContentLoaded', () => {
             addNodeBtn.classList.remove('active');
             addEdgeBtn.classList.remove('active');
             canvas.classList.remove('node-adding', 'edge-adding');
-            canvas.style.cursor = 'default'; 
+            canvas.style.cursor = 'default';
             
-            
-            updateAllDisabledTooltips();
             startHelloBtn.setAttribute('title', 'Stop Hello Phase (Space)');
         }
     });
@@ -760,13 +857,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm(`Are you sure you want to remove the connection between Router ${sourceId} and Router ${targetId}?`)){
             const sourceNode = network.nodes.get(sourceId);
             if (sourceNode && sourceNode.neighbors.has(targetId)){
-                sourceNode.neighbors.delete(targetId);
-                
                 
                 const targetNode = network.nodes.get(targetId);
-                if (targetNode && targetNode.neighbors.has(sourceId)){
-                    targetNode.neighbors.delete(sourceId);
-                }
+                const isBidirectional = targetNode && targetNode.neighbors.has(sourceId);
+                
+                
+                network.disconnectNodes(sourceId, targetId);
                 
                 
                 visualization.updateNodeDetails(network.selectedNode);
@@ -788,13 +884,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sourceNode && targetNode){
             const neighborData = sourceNode.neighbors.get(targetId);
             if (neighborData){
+                
+                const isBidirectional = targetNode.neighbors.has(sourceId);
+                
                 showWeightDialog((weight) => {
-                    sourceNode.neighbors.set(targetId, { weight });
                     
-                    
-                    if (targetNode.neighbors.has(sourceId)){
-                        targetNode.neighbors.set(sourceId, { weight });
-                    }
+                    network.updateEdgeWeight(sourceId, targetId, weight);
                     
                     
                     visualization.updateNodeDetails(network.selectedNode);
@@ -931,16 +1026,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
     function animate(){
-        if (network.isSimulationRunning){
+        if (network.isSimulationRunning) {
             network.simulationStep();
             
             
-            if (network.selectedNode){
+            if (network.selectedNode) {
                 visualization.updateNodeDetails(network.selectedNode);
             }
             
             
-            if (network.simulationPhase === 'hello' && network.helloPhaseComplete){
+            if (network.selectedNodeNeedsUpdate) {
+                visualization.updateNodeDetails(network.selectedNode);
+                network.selectedNodeNeedsUpdate = false;
+            }
+            
+            
+            if (network.simulationPhase === 'hello' && network.helloPhaseComplete) {
                 startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
                 startHelloBtn.classList.remove('active');
                 startLSABtn.disabled = false;
@@ -951,25 +1052,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 network.updateRoutingTables();
                 
                 
-                if (network.selectedNode){
+                if (network.selectedNode) {
                     visualization.updateNodeDetails(network.selectedNode);
                 }
                 
                 canvas.style.cursor = 'grab'; 
                 network.logger.log('NETWORK', 'Hello phase complete, routing tables generated');
                 
-                
                 updateButtonStates(false);
             }
             
             
-            if (network.simulationPhase === 'lsa' && network.lsaPhaseComplete){
+            if (network.simulationPhase === 'lsa' && network.lsaPhaseComplete) {
                 startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
                 startLSABtn.classList.remove('active');
                 startHelloBtn.disabled = false;
                 network.isSimulationRunning = false;
-                canvas.style.cursor = 'grab'; 
-                
+                canvas.style.cursor = 'grab';
                 
                 updateButtonStates(false);
             }
@@ -978,4 +1077,169 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(animate);
     }
     animate();
+
+    
+    pauseSimulationBtn.addEventListener('click', () => {
+        if (network.isSimulationRunning) {
+            const isPaused = network.pauseSimulation();
+            if (isPaused) {
+                pauseSimulationBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
+                pauseSimulationBtn.classList.add('active');
+            } else {
+                pauseSimulationBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                pauseSimulationBtn.classList.remove('active');
+            }
+        }
+    });
+
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'p' || e.key === 'P') {
+            if (!pauseSimulationBtn.disabled) {
+                pauseSimulationBtn.click();
+            }
+        }
+    });
+
+    
+    const adjacencyListModal = document.getElementById('adjacencyListModal');
+    const adjacencyListContent = document.getElementById('adjacencyListContent');
+    const closeModalBtn = document.querySelector('.close-modal');
+    
+    if (viewAdjacencyListBtn && adjacencyListModal && adjacencyListContent && closeModalBtn) {
+        viewAdjacencyListBtn.addEventListener('click', () => {
+            displayAdjacencyList();
+            adjacencyListModal.style.display = 'block';
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            adjacencyListModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === adjacencyListModal) {
+                adjacencyListModal.style.display = 'none';
+            }
+        });
+    }
+
+    
+    function displayAdjacencyList() {
+        if (network.nodes.size === 0) {
+            adjacencyListContent.innerHTML = '<div class="adjacency-list-empty">No nodes in the network</div>';
+            return;
+        }
+
+        
+        let html = `
+            <table class="adjacency-list-table">
+                <thead>
+                    <tr>
+                        <th>Source Router</th>
+                        <th>Target Router</th>
+                        <th>Weight</th>
+                        <th>Direction</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        
+        const displayedEdges = new Set();
+
+        
+        for (const [sourceId, sourceNode] of network.nodes) {
+            for (const [targetId, data] of sourceNode.neighbors) {
+                const targetNode = network.nodes.get(targetId);
+                if (!targetNode) continue;
+
+                
+                const isBidirectional = targetNode.neighbors.has(sourceId);
+                
+                
+                if (isBidirectional) {
+                    
+                    const edgeKey = sourceId < targetId 
+                        ? `${sourceId}-${targetId}` 
+                        : `${targetId}-${sourceId}`;
+                    
+                    
+                    if (displayedEdges.has(edgeKey)) continue;
+                    displayedEdges.add(edgeKey);
+                }
+
+                html += `
+                    <tr>
+                        <td>Router ${sourceId}</td>
+                        <td>Router ${targetId}</td>
+                        <td>${data.weight}</td>
+                        <td>
+                            ${isBidirectional 
+                                ? '<span class="direction-indicator bidirectional">Bidirectional</span>' 
+                                : '<span class="direction-indicator unidirectional">Unidirectional</span>'}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        html += `
+                </tbody>
+            </table>
+        `;
+
+        adjacencyListContent.innerHTML = html;
+    }
+
+    function updateNetworkStatus() {
+        document.getElementById('nodeCount').textContent = network.nodes.size;
+        document.getElementById('edgeCount').textContent = network.edges.size;
+        
+        
+        checkNetworkConnectivity();
+    }
+
+    
+    function checkNetworkConnectivity() {
+        if (network.nodes.size === 0) return;
+        
+        
+        const visited = new Map();
+        for (const nodeId of network.nodes.keys()) {
+            visited.set(nodeId, false);
+        }
+        
+        
+        const startNodeId = network.nodes.keys().next().value;
+        dfs(startNodeId, visited);
+        
+        
+        for (const [nodeId, isVisited] of visited) {
+            const node = network.nodes.get(nodeId);
+            const wasIsolated = node.isIsolated;
+            node.isIsolated = !isVisited;
+            
+            
+            if (!wasIsolated && node.isIsolated) {
+                console.log(`Node ${nodeId} is now isolated, clearing routing table`);
+                node.routingTable.clear();
+                updateRoutingTableDisplay(node);
+            }
+            
+            
+            visualization.updateNodeStyle(nodeId);
+        }
+    }
+
+    
+    function dfs(nodeId, visited) {
+        visited.set(nodeId, true);
+        const node = network.nodes.get(nodeId);
+        
+        for (const neighborId of node.neighbors.keys()) {
+            if (!visited.get(neighborId)) {
+                dfs(neighborId, visited);
+            }
+        }
+    }
 }); 

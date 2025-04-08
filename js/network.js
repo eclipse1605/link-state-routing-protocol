@@ -15,12 +15,12 @@ class Network {
         this.convergenceCounter = 0; 
         this.isConverged = false;
         
-        
         this.simulationPhase = 'none'; 
         this.currentNodeIndex = 0;
         this.nodesInOrder = []; 
         this.helloPhaseComplete = false;
         this.lsaPhaseComplete = false;
+        this.isPaused = false;
     }
 
     addNode(x, y, explicitId = null) {
@@ -139,10 +139,10 @@ class Network {
         this.resetSimulationState();
         this.simulationPhase = 'hello';
         this.isSimulationRunning = true;
+        this.isPaused = false;
         this.nodesInOrder = Array.from(this.nodes.values());
         this.currentNodeIndex = 0;
         this.helloPhaseComplete = false;
-        
         
         for (const node of this.nodes.values()) {
             node.routingTable.clear();
@@ -155,19 +155,48 @@ class Network {
         this.resetSimulationState(false); 
         this.simulationPhase = 'lsa';
         this.isSimulationRunning = true;
+        this.isPaused = false;
         this.nodesInOrder = Array.from(this.nodes.values());
         this.currentNodeIndex = 0;
         this.lsaPhaseComplete = false;
+        this.lsaSeenMap = new Map();
         this.logger.log('NETWORK', 'Starting LSA flooding phase');
     }
 
     stopSimulation() {
         this.isSimulationRunning = false;
+        this.isPaused = false;
         this.logger.log('NETWORK', `Stopped ${this.simulationPhase} phase`);
     }
 
+    pauseSimulation() {
+        if (this.isSimulationRunning) {
+            this.isPaused = !this.isPaused;
+            
+            
+            if (this.isPaused) {
+                
+                for (const node of this.nodes.values()) {
+                    const newRoutingTable = this.calculateShortestPaths(node.id);
+                    node.routingTable = newRoutingTable;
+                }
+                
+                
+                if (this.selectedNode) {
+                    this.selectedNodeNeedsUpdate = true;
+                }
+            }
+            
+            this.logger.log('NETWORK', this.isPaused ? 
+                `Paused ${this.simulationPhase} phase` : 
+                `Resumed ${this.simulationPhase} phase`);
+            return this.isPaused;
+        }
+        return false;
+    }
+
     simulationStep() {
-        if (!this.isSimulationRunning) return;
+        if (!this.isSimulationRunning || this.isPaused) return;
 
         if (this.simulationPhase === 'hello') {
             this.processHelloPhase();
@@ -175,7 +204,6 @@ class Network {
             this.processLSAPhase();
         }
 
-        
         this.updatePackets();
     }
 
@@ -271,18 +299,32 @@ class Network {
         
         for (let i = this.helloPackets.length - 1; i >= 0; i--) {
             const packet = this.helloPackets[i];
-            packet.progress += 0.02; 
+            packet.progress += 0.01;
             
             if (packet.progress >= 1) {
-                
                 const targetNode = this.nodes.get(packet.targetId);
                 if (targetNode) {
+                    
+                    const sourceNeighbors = Array.from(this.nodes.get(packet.sourceId).neighbors.entries())
+                        .map(([id, data]) => ({ nodeId: id, weight: data.weight }));
+                    
                     targetNode.processHelloPacket({
                         sourceId: packet.sourceId,
                         timestamp: Date.now(),
-                        neighbors: Array.from(this.nodes.get(packet.sourceId).neighbors.entries())
-                            .map(([id, data]) => ({ nodeId: id, weight: data.weight }))
+                        neighbors: sourceNeighbors
                     });
+                    
+                    
+                    targetNode.updateRoutingTable();
+                    
+                    
+                    const newRoutingTable = this.calculateShortestPaths(targetNode.id);
+                    targetNode.routingTable = newRoutingTable;
+                    
+                    
+                    if (this.selectedNode && this.selectedNode.id === targetNode.id) {
+                        this.selectedNodeNeedsUpdate = true;
+                    }
                 }
                 this.logger.log('PACKET', `Hello packet from Router ${packet.sourceId} to Router ${packet.targetId} delivered`);
                 this.helloPackets.splice(i, 1);
@@ -297,59 +339,64 @@ class Network {
         
         for (let i = this.lsaPackets.length - 1; i >= 0; i--) {
             const packet = this.lsaPackets[i];
-            packet.progress += 0.01; 
+            packet.progress += 0.005;
             
             if (packet.progress >= 1) {
                 const targetNode = this.nodes.get(packet.targetId);
                 if (!targetNode) {
-                    
                     this.lsaPackets.splice(i, 1);
                     continue;
                 }
                 
-                
                 const originalSource = packet.originalSource || packet.sourceId;
                 const sender = packet.sourceId; 
                 
-                
                 const lsaKey = `${originalSource}-${packet.sequenceNumber}`;
-                
                 
                 if (!this.lsaSeenMap.has(lsaKey)) {
                     this.lsaSeenMap.set(lsaKey, new Set());
                 }
                 
-                
                 const seenNodes = this.lsaSeenMap.get(lsaKey);
                 
-                
                 if (seenNodes.has(targetNode.id)) {
-                    
                     this.lsaPackets.splice(i, 1);
                     continue;
                 }
                 
-                
                 seenNodes.add(targetNode.id);
                 
                 
-                targetNode.processLSA(originalSource, packet.sequenceNumber, packet.neighbors);
+                const wasProcessed = targetNode.processLSA(originalSource, packet.sequenceNumber, packet.neighbors);
                 
-                
-                for (const [neighborId, _] of targetNode.neighbors) {
+                if (wasProcessed) {
                     
-                    if (neighborId !== sender && !seenNodes.has(neighborId)) {
-                        this.lsaPackets.push({
-                            sourceId: targetNode.id, 
-                            targetId: neighborId,
-                            progress: 0,
-                            type: 'lsa',
-                            sequenceNumber: packet.sequenceNumber,
-                            neighbors: packet.neighbors,
-                            originalSource: originalSource,
-                            sender: targetNode.id 
-                        });
-                        this.logger.log('PACKET', `LSA packet #${packet.sequenceNumber} forwarded from Router ${targetNode.id} to Router ${neighborId}`);
+                    for (const [neighborId, _] of targetNode.neighbors) {
+                        if (neighborId !== sender && !seenNodes.has(neighborId)) {
+                            this.lsaPackets.push({
+                                sourceId: targetNode.id, 
+                                targetId: neighborId,
+                                progress: 0,
+                                type: 'lsa',
+                                sequenceNumber: packet.sequenceNumber,
+                                neighbors: packet.neighbors,
+                                originalSource: originalSource,
+                                sender: targetNode.id 
+                            });
+                            this.logger.log('PACKET', `LSA packet #${packet.sequenceNumber} forwarded from Router ${targetNode.id} to Router ${neighborId}`);
+                        }
+                    }
+                    
+                    
+                    targetNode.updateRoutingTable();
+                    
+                    
+                    const newRoutingTable = this.calculateShortestPaths(targetNode.id);
+                    targetNode.routingTable = newRoutingTable;
+                    
+                    
+                    if (this.selectedNode && this.selectedNode.id === targetNode.id) {
+                        this.selectedNodeNeedsUpdate = true;
                     }
                 }
                 
@@ -562,7 +609,7 @@ class Network {
         this.convergenceCounter = 0;
         this.isConverged = false;
         this.lsaSeenMap = new Map(); 
-        
+        this.isPaused = false;
         
         if (clearRoutingTables) {
             for (const node of this.nodes.values()) {
