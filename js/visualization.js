@@ -643,7 +643,7 @@ class Visualization {
     }
 
     drawPackets() {
-        // Draw hello packets
+        
         for (const packet of this.network.helloPackets) {
             const sourceNode = this.network.nodes.get(packet.sourceId);
             const targetNode = this.network.nodes.get(packet.targetId);
@@ -670,12 +670,12 @@ class Visualization {
             }
         }
         
-        // Draw LSA packets
+        
         for (const packet of this.network.lsaPackets) {
             const receivedFromNode = this.network.nodes.get(packet.receivedFrom);
             const targetNode = this.network.nodes.get(packet.targetId);
             
-            // Only draw if there's an actual edge between the nodes
+            
             if (receivedFromNode && targetNode && 
                 receivedFromNode.neighbors.has(targetNode.id) && 
                 targetNode.neighbors.has(receivedFromNode.id)) {
@@ -688,20 +688,20 @@ class Visualization {
                 const currentX = startX + (endX - startX) * packet.progress;
                 const currentY = startY + (endY - startY) * packet.progress;
                 
-                // Draw the packet
+                
                 this.ctx.beginPath();
                 this.ctx.arc(currentX, currentY, 6, 0, Math.PI * 2);
                 this.ctx.fillStyle = '#2196F3'; 
                 this.ctx.fill();
                 
-                // Draw the trail
+                
                 this.ctx.beginPath();
                 this.ctx.moveTo(startX, startY);
                 this.ctx.lineTo(currentX, currentY);
                 this.ctx.strokeStyle = 'rgba(33, 150, 243, 0.3)'; 
                 this.ctx.stroke();
                 
-                // Draw the sequence number
+                
                 this.ctx.fillStyle = '#fff';
                 this.ctx.font = '10px Arial';
                 this.ctx.textAlign = 'center';

@@ -21,7 +21,7 @@ class Network {
         this.helloPhaseComplete = false;
         this.lsaPhaseComplete = false;
         this.isPaused = false;
-        this.maxAge = 0;  // Will be set based on network size
+        this.maxAge = 0;  
     }
 
     addNode(x, y, explicitId = null) {
@@ -134,22 +134,22 @@ class Network {
     }
 
     startHelloPhase() {
-        // Clear all packets and state from previous phases
+        
         this.helloPackets = [];
         this.lsaPackets = [];
         this.lsaSeenMap = new Map();
         this.lsaSequenceNumber = 1;
         
-        // Reset simulation state
+        
         this.simulationPhase = 'hello';
         this.isSimulationRunning = true;
         this.isPaused = false;
         this.nodesInOrder = Array.from(this.nodes.values());
         this.currentNodeIndex = 0;
         this.helloPhaseComplete = false;
-        this.lsaPhaseComplete = false;  // Ensure LSA phase is marked as not complete
+        this.lsaPhaseComplete = false;  
         
-        // Preserve the network topology but reset routing tables
+        
         for (const node of this.nodes.values()) {
             node.routingTable.clear();
             node.isActive = true;
@@ -165,18 +165,18 @@ class Network {
         this.lsaPackets = [];
         this.lsaPhaseComplete = false;
         
-        // Reset LSA state for all nodes
+        
         for (const node of this.nodes.values()) {
-            node.lsa_db = {};  // Clear LSA database
-            node.received_lsas = new Set();  // Track which LSAs we've seen
+            node.lsa_db = {};  
+            node.received_lsas = new Set();  
         }
         
-        // Each router creates its initial LSA and sends to neighbors
+        
         for (const node of this.nodes.values()) {
-            // Create LSA containing router ID and neighbor information
+            
             const lsa = {
-                sourceId: node.id,  // Router ID
-                sequenceNumber: 1,   // First LSA from this router
+                sourceId: node.id,  
+                sequenceNumber: 1,   
                 neighbors: Array.from(node.neighbors.entries())
                     .map(([neighborId, data]) => ({
                         id: neighborId,
@@ -184,11 +184,11 @@ class Network {
                     }))
             };
             
-            // Router stores its own LSA
+            
             node.lsa_db[node.id] = lsa;
             node.received_lsas.add(`${node.id}-1`);
             
-            // Send to all neighbors
+            
             for (const [neighborId, _] of node.neighbors) {
                 this.lsaPackets.push({
                     lsa: lsa,
@@ -257,7 +257,7 @@ class Network {
             const currentNode = this.nodesInOrder[this.currentNodeIndex];
             if (currentNode && currentNode.isActive) {
                 for (const [neighborId, data] of currentNode.neighbors) {
-                    // Send hello packet
+                    
                     this.helloPackets.push({
                         sourceId: currentNode.id,
                         targetId: neighborId,
@@ -265,7 +265,7 @@ class Network {
                         type: 'hello'
                     });
                     
-                    // Ensure the reverse connection is maintained
+                    
                     const neighborNode = this.nodes.get(neighborId);
                     if (neighborNode && !neighborNode.neighbors.has(currentNode.id)) {
                         neighborNode.neighbors.set(currentNode.id, { weight: data.weight });
@@ -293,7 +293,7 @@ class Network {
             return;
         }
 
-        // Process all LSA packets
+        
         for (let i = this.lsaPackets.length - 1; i >= 0; i--) {
             const packet = this.lsaPackets[i];
             packet.progress += 0.01;
@@ -301,18 +301,18 @@ class Network {
             if (packet.progress >= 1) {
                 const targetNode = this.nodes.get(packet.targetId);
                 
-                // Only process if target exists
+                
                 if (targetNode) {
                     const lsa = packet.lsa;
                     const key = `${lsa.sourceId}-${lsa.sequenceNumber}`;
                     
-                    // If we haven't seen this LSA before
+                    
                     if (!targetNode.received_lsas.has(key)) {
-                        // Store the LSA
+                        
                         targetNode.received_lsas.add(key);
                         targetNode.lsa_db[lsa.sourceId] = lsa;
                         
-                        // Forward to all neighbors except the one we got it from
+                        
                         for (const [neighborId, _] of targetNode.neighbors) {
                             if (neighborId !== packet.receivedFrom) {
                                 this.lsaPackets.push({
@@ -326,23 +326,23 @@ class Network {
                     }
                 }
                 
-                // Remove processed packet
+                
                 this.lsaPackets.splice(i, 1);
             }
         }
 
-        // Check if flooding is complete (no more packets and all nodes have all LSAs)
+        
         if (this.lsaPackets.length === 0) {
             const complete = Array.from(this.nodes.values()).every(node => {
-                // Each node should have LSAs from every other node
+                
                 return Array.from(this.nodes.keys()).every(otherId => 
-                    // Skip self or inactive nodes
+                    
                     otherId === node.id || node.lsa_db[otherId] !== undefined
                 );
             });
             
             if (complete) {
-                // All nodes have complete topology - calculate routes
+                
                 for (const node of this.nodes.values()) {
                     node.routingTable = this.calculateShortestPaths(node.id);
                 }
@@ -353,7 +353,7 @@ class Network {
     }
 
     updatePackets() {
-        // Process hello packets
+        
         for (let i = this.helloPackets.length - 1; i >= 0; i--) {
             const packet = this.helloPackets[i];
             packet.progress += 0.01;
@@ -378,7 +378,7 @@ class Network {
             }
         }
 
-        // Process LSA packets is now handled in processLSAPhase
+        
     }
 
     updateRoutingTables() {
@@ -574,7 +574,7 @@ class Network {
     }
 
     resetSimulationState(clearRoutingTables = true) {
-        // Reset only simulation-specific state
+        
         this.simulationPhase = 'none';
         this.currentNodeIndex = 0;
         this.nodesInOrder = [];
@@ -587,7 +587,7 @@ class Network {
         this.lsaSeenMap = new Map();
         this.isPaused = false;
         
-        // Optionally clear routing tables without affecting network topology
+        
         if (clearRoutingTables) {
             for (const node of this.nodes.values()) {
                 node.routingTable.clear();
@@ -598,7 +598,7 @@ class Network {
         this.logger.log('NETWORK', 'Simulation state reset');
     }
 
-    // Add this helper method to determine which nodes are reachable
+    
     getReachableNodes(startNodeId) {
         const visited = new Set();
         const queue = [startNodeId];

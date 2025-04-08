@@ -1335,4 +1335,163 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     importInput.addEventListener('change', importNetwork);
+
+    
+    const helpBtn = document.createElement('button');
+    helpBtn.innerHTML = '<i class="fas fa-question-circle"></i> Help';
+    helpBtn.id = 'helpButton';
+    helpBtn.className = 'toolbar-button';
+    document.querySelector('.toolbar').appendChild(helpBtn);
+
+    
+    const helpModal = document.createElement('div');
+    helpModal.className = 'help-modal';
+    helpModal.innerHTML = `
+        <div class="help-content">
+            <h2>Link-State Routing Simulator Guide</h2>
+            
+            <h3>Network Creation</h3>
+            <ul>
+                <li><strong>Add Node:</strong> Click "Add Node" button, then click anywhere on canvas</li>
+                <li><strong>Move Node:</strong> Click and drag any router</li>
+                <li><strong>Add Edge:</strong> Click "Add Edge" button, click source router, then destination router</li>
+                <li><strong>Delete Node:</strong> Select a router, then click "Remove Node"</li>
+                <li><strong>Edit Edge:</strong> Click router to view neighbors, use Edit/Delete buttons next to each neighbor</li>
+            </ul>
+
+            <h3>Simulation Controls</h3>
+            <ul>
+                <li><strong>Start Hello Phase:</strong> Initiates neighbor discovery process</li>
+                <li><strong>Start Flooding:</strong> Begins LSA flooding (available after Hello phase)</li>
+                <li><strong>Stop Simulation:</strong> Click the active phase button again</li>
+            </ul>
+
+            <h3>Navigation</h3>
+            <ul>
+                <li><strong>Pan:</strong> Click and drag empty space</li>
+                <li><strong>Zoom:</strong> Mouse wheel up/down</li>
+                <li><strong>Reset View:</strong> Click "Reset View" button</li>
+                <li><strong>Select Router:</strong> Click on any router to view details</li>
+            </ul>
+
+            <h3>Link-State Protocol Steps</h3>
+            <ol>
+                <li>Each router discovers neighbors using Hello packets</li>
+                <li>Routers create Link-State Advertisements (LSAs) containing:
+                    <ul>
+                        <li>Router ID</li>
+                        <li>List of neighbors and costs</li>
+                    </ul>
+                </li>
+                <li>LSAs are flooded through the network</li>
+                <li>Each router builds complete network map</li>
+                <li>Dijkstra's algorithm calculates shortest paths</li>
+            </ol>
+
+            <button id="closeHelp" class="close-button">Close</button>
+        </div>
+    `;
+    document.body.appendChild(helpModal);
+
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        .help-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .help-content {
+            position: relative;
+            background-color: #2d2d2d;
+            color: #fff;
+            margin: 50px auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .help-content h2 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+
+        .help-content h3 {
+            color: #2196F3;
+            margin: 20px 0 10px 0;
+        }
+
+        .help-content ul, .help-content ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .help-content li {
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+
+        .help-content strong {
+            color: #4CAF50;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .close-button:hover {
+            background-color: #45a049;
+        }
+
+        #helpButton {
+            background-color: #2196F3;
+        }
+
+        #helpButton:hover {
+            background-color: #1976D2;
+        }
+    `;
+    document.head.appendChild(style);
+
+    
+    helpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'block';
+    });
+
+    document.getElementById('closeHelp').addEventListener('click', () => {
+        helpModal.style.display = 'none';
+    });
+
+    
+    helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
+            helpModal.style.display = 'none';
+        }
+    });
+
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'h') {
+            helpModal.style.display = helpModal.style.display === 'none' ? 'block' : 'none';
+        }
+    });
 }); 
