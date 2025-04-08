@@ -1564,4 +1564,115 @@ document.addEventListener('DOMContentLoaded', () => {
             helpModal.style.display = helpModal.style.display === 'none' ? 'block' : 'none';
         }
     });
+
+    
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'context-menu';
+    contextMenu.innerHTML = `
+        <div class="context-menu-item" id="addNodeContext">Add Node Here</div>
+    `;
+    contextMenu.style.display = 'none';
+    document.body.appendChild(contextMenu);
+
+    
+    const contextMenuStyle = document.createElement('style');
+    contextMenuStyle.textContent = `
+        .context-menu {
+            position: fixed;
+            background-color: #2d2d2d;
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            padding: 5px 0;
+            min-width: 150px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .context-menu-item {
+            padding: 8px 15px;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background-color: #4CAF50;
+        }
+    `;
+    document.head.appendChild(contextMenuStyle);
+
+    
+    canvas.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        
+        if (network.isSimulationRunning) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left - visualization.offset.x) / visualization.scale;
+        const y = (event.clientY - rect.top - visualization.offset.y) / visualization.scale;
+        
+        
+        let clickedOnNode = false;
+        for (const node of network.nodes.values()) {
+            const dx = x - node.x;
+            const dy = y - node.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 20) { 
+                clickedOnNode = true;
+                break;
+            }
+        }
+        
+        if (!clickedOnNode) {
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = `${event.clientX}px`;
+            contextMenu.style.top = `${event.clientY}px`;
+            
+            
+            contextMenu.dataset.x = x;
+            contextMenu.dataset.y = y;
+        }
+    });
+
+    
+    document.addEventListener('click', (event) => {
+        if (!contextMenu.contains(event.target)) {
+            contextMenu.style.display = 'none';
+        }
+    });
+
+    
+    document.getElementById('addNodeContext').addEventListener('click', () => {
+        const x = parseFloat(contextMenu.dataset.x);
+        const y = parseFloat(contextMenu.dataset.y);
+        
+        
+        const minDistance = 50;
+        let tooClose = false;
+        
+        for (const node of network.nodes.values()) {
+            const dx = x - node.x;
+            const dy = y - node.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < minDistance) {
+                tooClose = true;
+                break;
+            }
+        }
+        
+        if (!tooClose) {
+            const node = network.addNode(x, y);
+            network.selectedNode = node;
+            visualization.selectedNode = node;
+            visualization.updateNodeDetails(node);
+            removeNodeBtn.disabled = false;
+            removeNodeBtn.removeAttribute('data-tooltip');
+            visualization.render();
+            saveState();
+        } else {
+            alert('Cannot add node: Too close to existing nodes');
+        }
+        
+        contextMenu.style.display = 'none';
+    });
 }); 

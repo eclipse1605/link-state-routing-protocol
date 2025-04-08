@@ -62,6 +62,42 @@ class Visualization {
                 }
             }
         });
+
+        
+        this.canMoveNodeTo = (node, newX, newY) => {
+            const minDistance = 50; 
+            
+            for (const otherNode of this.network.nodes.values()) {
+                if (otherNode === node) continue;
+                
+                const dx = newX - otherNode.x;
+                const dy = newY - otherNode.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < minDistance) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        
+        this.canvas.addEventListener('mousemove', (event) => {
+            if (this.isDragging && this.selectedNode && !this.network.isSimulationRunning) {
+                const rect = this.canvas.getBoundingClientRect();
+                const newX = (event.clientX - rect.left - this.offset.x) / this.scale;
+                const newY = (event.clientY - rect.top - this.offset.y) / this.scale;
+                
+                
+                this.selectedNode.x = newX;
+                this.selectedNode.y = newY;
+                
+                
+                this.handleNodeCollision(this.selectedNode, newX, newY);
+                
+                this.render();
+            }
+        });
     }
 
     setupEventListeners() {
@@ -161,17 +197,15 @@ class Visualization {
         
         if (this.draggedNode) {
             
-            this.draggedNode.x = pos.x + this.dragOffset.x;
-            this.draggedNode.y = pos.y + this.dragOffset.y;
-            
-            
-            
-            this.render();
+            if (this.canMoveNodeTo(this.draggedNode, pos.x + this.dragOffset.x, pos.y + this.dragOffset.y)) {
+                this.draggedNode.x = pos.x + this.dragOffset.x;
+                this.draggedNode.y = pos.y + this.dragOffset.y;
+                this.render();
+            }
         } else if (this.edgeCreationState.isActive && this.edgeCreationState.sourceNode) {
             this.edgeCreationState.previewPos = pos;
             this.render();
         } else if (this.isDragging) {
-            
             const dx = event.clientX - this.lastMousePos.x;
             const dy = event.clientY - this.lastMousePos.y;
             this.offset.x += dx;
@@ -179,10 +213,8 @@ class Visualization {
             this.lastMousePos = { x: event.clientX, y: event.clientY };
             this.render();
         } else if (!this.edgeCreationState.isActive && !this.isAddingNode) {
-            
             this.canvas.style.cursor = hoverNode ? 'pointer' : 'grab';
         } else if (hoverNode) {
-            
             this.canvas.style.cursor = 'pointer';
         }
     }
@@ -331,7 +363,10 @@ class Visualization {
             this.phantomNode.x = pos.x;
             this.phantomNode.y = pos.y;
         } else if (this.network.draggedNode) {
-            this.network.moveNode(this.network.draggedNode.id, pos.x, pos.y);
+            
+            if (this.canMoveNodeTo(this.network.draggedNode, pos.x, pos.y)) {
+                this.network.moveNode(this.network.draggedNode.id, pos.x, pos.y);
+            }
         } else if (this.isDragging) {
             const dx = touch.clientX - this.lastMousePos.x;
             const dy = touch.clientY - this.lastMousePos.y;
