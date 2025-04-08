@@ -31,6 +31,37 @@ class Visualization {
 
         this.setupEventListeners();
         this.resizeCanvas();
+
+        
+        this.canvas.addEventListener('click', (e) => {
+            if (this.network.isSimulationRunning) return;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = (e.clientX - rect.left - this.offset.x) / this.scale;
+            const mouseY = (e.clientY - rect.top - this.offset.y) / this.scale;
+            
+            
+            for (const [sourceId, sourceNode] of this.network.nodes) {
+                for (const [targetId, data] of sourceNode.neighbors) {
+                    const targetNode = this.network.nodes.get(targetId);
+                    if (!targetNode) continue;
+
+                    
+                    const midX = (sourceNode.x + targetNode.x) / 2;
+                    const midY = (sourceNode.y + targetNode.y) / 2;
+
+                    
+                    const clickRadius = 15;
+                    const dx = mouseX - midX;
+                    const dy = mouseY - midY;
+                    if (dx * dx + dy * dy <= clickRadius * clickRadius) {
+                        
+                        window.updateEdgeWeight(sourceId, targetId);
+                        return;
+                    }
+                }
+            }
+        });
     }
 
     setupEventListeners() {
@@ -648,40 +679,9 @@ class Visualization {
             const sourceNode = this.network.nodes.get(packet.sourceId);
             const targetNode = this.network.nodes.get(packet.targetId);
             
-            if (sourceNode && targetNode && sourceNode.neighbors.has(targetNode.id)) {
+            if (sourceNode && targetNode) {
                 const startX = sourceNode.x;
                 const startY = sourceNode.y;
-                const endX = targetNode.x;
-                const endY = targetNode.y;
-                
-                const currentX = startX + (endX - startX) * packet.progress;
-                const currentY = startY + (endY - startY) * packet.progress;
-                
-                this.ctx.beginPath();
-                this.ctx.arc(currentX, currentY, 5, 0, Math.PI * 2);
-                this.ctx.fillStyle = '#4CAF50'; 
-                this.ctx.fill();
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(startX, startY);
-                this.ctx.lineTo(currentX, currentY);
-                this.ctx.strokeStyle = 'rgba(76, 175, 80, 0.3)'; 
-                this.ctx.stroke();
-            }
-        }
-        
-        
-        for (const packet of this.network.lsaPackets) {
-            const receivedFromNode = this.network.nodes.get(packet.receivedFrom);
-            const targetNode = this.network.nodes.get(packet.targetId);
-            
-            
-            if (receivedFromNode && targetNode && 
-                receivedFromNode.neighbors.has(targetNode.id) && 
-                targetNode.neighbors.has(receivedFromNode.id)) {
-                
-                const startX = receivedFromNode.x;
-                const startY = receivedFromNode.y;
                 const endX = targetNode.x;
                 const endY = targetNode.y;
                 
@@ -691,14 +691,44 @@ class Visualization {
                 
                 this.ctx.beginPath();
                 this.ctx.arc(currentX, currentY, 6, 0, Math.PI * 2);
-                this.ctx.fillStyle = '#2196F3'; 
+                this.ctx.fillStyle = '#4CAF50';
                 this.ctx.fill();
                 
                 
                 this.ctx.beginPath();
                 this.ctx.moveTo(startX, startY);
                 this.ctx.lineTo(currentX, currentY);
-                this.ctx.strokeStyle = 'rgba(33, 150, 243, 0.3)'; 
+                this.ctx.strokeStyle = 'rgba(76, 175, 80, 0.3)';
+                this.ctx.stroke();
+            }
+        }
+        
+        
+        for (const packet of this.network.lsaPackets) {
+            const sourceNode = this.network.nodes.get(packet.receivedFrom);
+            const targetNode = this.network.nodes.get(packet.targetId);
+            
+            
+            if (sourceNode && targetNode && sourceNode.neighbors.has(targetNode.id)) {
+                const startX = sourceNode.x;
+                const startY = sourceNode.y;
+                const endX = targetNode.x;
+                const endY = targetNode.y;
+                
+                const currentX = startX + (endX - startX) * packet.progress;
+                const currentY = startY + (endY - startY) * packet.progress;
+                
+                
+                this.ctx.beginPath();
+                this.ctx.arc(currentX, currentY, 6, 0, Math.PI * 2);
+                this.ctx.fillStyle = '#2196F3';
+                this.ctx.fill();
+                
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(startX, startY);
+                this.ctx.lineTo(currentX, currentY);
+                this.ctx.strokeStyle = 'rgba(33, 150, 243, 0.3)';
                 this.ctx.stroke();
                 
                 

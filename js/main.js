@@ -1259,23 +1259,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 y: node.y,
                 neighbors: Array.from(node.neighbors.entries()).map(([neighborId, data]) => ({
                     id: neighborId,
-                    weight: data.weight
+                    weight: data.weight,
+                    isBidirectional: network.nodes.get(neighborId)?.neighbors.has(node.id) || false
                 }))
             })),
-            nextNodeId: network.nextNodeId
+            nextNodeId: network.nextNodeId,
+            version: "1.0"
         };
 
         const jsonString = JSON.stringify(networkState, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'network_state.json';
+        a.download = `network_state_${timestamp}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        network.logger.log('NETWORK', 'Network exported successfully');
     }
 
     function importNetwork(event) {
@@ -1287,32 +1292,70 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const networkState = JSON.parse(e.target.result);
                 
+                
+                if (!networkState.nodes || !Array.isArray(networkState.nodes)) {
+                    throw new Error('Invalid network state format');
+                }
+                
+                
                 network.nodes.clear();
                 network.selectedNode = null;
                 network.helloPackets = [];
                 network.lsaPackets = [];
-                network.nextNodeId = networkState.nextNodeId;
+                network.nextNodeId = networkState.nextNodeId || 1;
+                network.resetSimulationState(true);
+                
                 
                 const nodeMap = new Map();
                 for (const nodeData of networkState.nodes) {
+                    if (!nodeData.id || typeof nodeData.x !== 'number' || typeof nodeData.y !== 'number') {
+                        throw new Error('Invalid node data format');
+                    }
                     const node = network.addNode(nodeData.x, nodeData.y, nodeData.id);
                     nodeMap.set(nodeData.id, node);
                 }
                 
+                
+                const processedEdges = new Set(); 
                 for (const nodeData of networkState.nodes) {
-                    const node = nodeMap.get(nodeData.id);
-                    if (node) {
-                        for (const neighbor of nodeData.neighbors) {
-                            const neighborNode = nodeMap.get(neighbor.id);
-                            if (neighborNode) {
-                                network.connectNodes(node.id, neighborNode.id, neighbor.weight);
-                            }
-                        }
+                    const sourceNode = nodeMap.get(nodeData.id);
+                    if (!sourceNode) continue;
+                    
+                    
+                    sourceNode.neighbors.clear();
+                    sourceNode.lsa_db = {};
+                    
+                    if (!nodeData.neighbors || !Array.isArray(nodeData.neighbors)) continue;
+                    
+                    for (const neighbor of nodeData.neighbors) {
+                        if (!neighbor.id || typeof neighbor.weight !== 'number') continue;
+                        
+                        const targetNode = nodeMap.get(neighbor.id);
+                        if (!targetNode) continue;
+                        
+                        
+                        const edgeId = [Math.min(nodeData.id, neighbor.id), Math.max(nodeData.id, neighbor.id)].join('-');
+                        
+                        
+                        if (processedEdges.has(edgeId)) continue;
+                        
+                        
+                        network.connectNodes(
+                            nodeData.id,
+                            neighbor.id,
+                            neighbor.weight,
+                            neighbor.isBidirectional
+                        );
+                        
+                        processedEdges.add(edgeId);
                     }
                 }
                 
+                
+                visualization.resetView();
                 visualization.render();
                 saveState();
+                
                 network.logger.log('NETWORK', 'Network imported successfully');
             } catch (error) {
                 network.logger.log('ERROR', 'Failed to import network: ' + error.message);
@@ -1340,8 +1383,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const helpBtn = document.createElement('button');
     helpBtn.innerHTML = '<i class="fas fa-question-circle"></i> Help';
     helpBtn.id = 'helpButton';
-    helpBtn.className = 'toolbar-button';
-    document.querySelector('.toolbar').appendChild(helpBtn);
+    helpBtn.className = 'help-button';
+    document.body.appendChild(helpBtn);
 
     
     const helpModal = document.createElement('div');
@@ -1468,6 +1511,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         #helpButton:hover {
             background-color: #1976D2;
+        }
+
+        .help-button {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+        }
+
+        .help-button:hover {
+            background-color: #1976D2;
+        }
+
+        .help-button i {
+            font-size: 16px;
         }
     `;
     document.head.appendChild(style);

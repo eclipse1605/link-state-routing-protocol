@@ -164,42 +164,138 @@ class Network {
         this.isPaused = false;
         this.lsaPackets = [];
         this.lsaPhaseComplete = false;
+        this.currentNodeIndex = 0;
+        this.nodesInOrder = Array.from(this.nodes.values());
+        this.currentNodeComplete = false;
         
         
         for (const node of this.nodes.values()) {
             node.lsa_db = {};  
             node.received_lsas = new Set();  
+            node.forwardedTo = new Map(); 
         }
         
         
-        for (const node of this.nodes.values()) {
-            
-            const lsa = {
-                sourceId: node.id,  
-                sequenceNumber: 1,   
-                neighbors: Array.from(node.neighbors.entries())
-                    .map(([neighborId, data]) => ({
-                        id: neighborId,
-                        cost: data.weight
-                    }))
-            };
-            
-            
-            node.lsa_db[node.id] = lsa;
-            node.received_lsas.add(`${node.id}-1`);
-            
-            
-            for (const [neighborId, _] of node.neighbors) {
-                this.lsaPackets.push({
-                    lsa: lsa,
-                    targetId: neighborId,
-                    receivedFrom: node.id,
-                    progress: 0
-                });
-            }
-        }
+        this.startNextNodeLSA();
         
         this.logger.log('NETWORK', 'Starting LSA flooding phase');
+    }
+
+    startNextNodeLSA() {
+        if (this.currentNodeIndex >= this.nodesInOrder.length) {
+            
+            this.lsaPhaseComplete = true;
+            this.logger.log('NETWORK', 'All nodes have completed their LSA floods');
+            return;
+        }
+
+        const currentNode = this.nodesInOrder[this.currentNodeIndex];
+        
+        
+        const lsa = {
+            sourceId: currentNode.id,
+            sequenceNumber: 1,
+            neighbors: Array.from(currentNode.neighbors.entries())
+                .map(([neighborId, data]) => ({
+                    id: neighborId,
+                    cost: data.weight
+                }))
+        };
+        
+        
+        currentNode.lsa_db[currentNode.id] = lsa;
+        currentNode.received_lsas.add(`${currentNode.id}-1`);
+        
+        
+        for (const [neighborId, _] of currentNode.neighbors) {
+            this.lsaPackets.push({
+                lsa: lsa,
+                targetId: neighborId,
+                receivedFrom: currentNode.id,
+                progress: 0,
+                sourceNode: currentNode.id 
+            });
+            
+            
+            if (!currentNode.forwardedTo.has(lsa.sourceId)) {
+                currentNode.forwardedTo.set(lsa.sourceId, new Set());
+            }
+            currentNode.forwardedTo.get(lsa.sourceId).add(neighborId);
+        }
+        
+        this.logger.log('NETWORK', `Router ${currentNode.id} starting LSA flood`);
+    }
+
+    processLSAPhase() {
+        if (this.lsaPhaseComplete) {
+            this.stopSimulation();
+            this.logger.log('NETWORK', 'LSA flooding phase complete');
+            return;
+        }
+
+        
+        for (let i = this.lsaPackets.length - 1; i >= 0; i--) {
+            const packet = this.lsaPackets[i];
+            packet.progress += 0.01;
+            
+            if (packet.progress >= 1) {
+                const targetNode = this.nodes.get(packet.targetId);
+                
+                if (targetNode) {
+                    const lsa = packet.lsa;
+                    const key = `${lsa.sourceId}-${lsa.sequenceNumber}`;
+                    
+                    if (!targetNode.received_lsas.has(key)) {
+                        targetNode.received_lsas.add(key);
+                        targetNode.lsa_db[lsa.sourceId] = lsa;
+                        
+                        
+                        for (const [neighborId, _] of targetNode.neighbors) {
+                            const neighborNode = this.nodes.get(neighborId);
+                            
+                            
+                            
+                            
+                            if (neighborId !== packet.receivedFrom && 
+                                neighborId !== lsa.sourceId &&
+                                !neighborNode.received_lsas.has(key)) {
+                                
+                                this.lsaPackets.push({
+                                    lsa: lsa,
+                                    targetId: neighborId,
+                                    receivedFrom: targetNode.id,
+                                    progress: 0,
+                                    sourceNode: packet.sourceNode
+                                });
+                                
+                                this.logger.log('PACKET', `Router ${targetNode.id} forwarding LSA from Router ${lsa.sourceId} to Router ${neighborId}`);
+                            }
+                        }
+                    }
+                }
+                
+                this.lsaPackets.splice(i, 1);
+            }
+        }
+
+        
+        if (this.lsaPackets.length === 0) {
+            const currentNode = this.nodesInOrder[this.currentNodeIndex];
+            
+            
+            const reachableNodes = this.getReachableNodes(currentNode.id);
+            const allReachableNodesHaveCurrentLSA = Array.from(this.nodes.values()).every(node => 
+                node.id === currentNode.id || 
+                !reachableNodes.has(node.id) || 
+                node.lsa_db[currentNode.id] !== undefined
+            );
+            
+            if (allReachableNodesHaveCurrentLSA) {
+                this.logger.log('NETWORK', `Router ${currentNode.id} completed LSA flood`);
+                this.currentNodeIndex++;
+                this.startNextNodeLSA();
+            }
+        }
     }
 
     stopSimulation() {
@@ -257,21 +353,12 @@ class Network {
             const currentNode = this.nodesInOrder[this.currentNodeIndex];
             if (currentNode && currentNode.isActive) {
                 for (const [neighborId, data] of currentNode.neighbors) {
-                    
                     this.helloPackets.push({
                         sourceId: currentNode.id,
                         targetId: neighborId,
                         progress: 0,
                         type: 'hello'
                     });
-                    
-                    
-                    const neighborNode = this.nodes.get(neighborId);
-                    if (neighborNode && !neighborNode.neighbors.has(currentNode.id)) {
-                        neighborNode.neighbors.set(currentNode.id, { weight: data.weight });
-                        neighborNode.lsa_seq++;
-                        neighborNode.lsa_db[currentNode.id] = { weight: data.weight, timestamp: Date.now() };
-                    }
                     
                     this.logger.log('PACKET', `Hello packet sent from Router ${currentNode.id} to Router ${neighborId}`);
                 }
@@ -282,72 +369,6 @@ class Network {
                 if (this.helloPackets.length === 0) {
                     this.helloPhaseComplete = true;
                 }
-            }
-        }
-    }
-
-    processLSAPhase() {
-        if (this.lsaPhaseComplete) {
-            this.stopSimulation();
-            this.logger.log('NETWORK', 'LSA flooding phase complete');
-            return;
-        }
-
-        
-        for (let i = this.lsaPackets.length - 1; i >= 0; i--) {
-            const packet = this.lsaPackets[i];
-            packet.progress += 0.01;
-            
-            if (packet.progress >= 1) {
-                const targetNode = this.nodes.get(packet.targetId);
-                
-                
-                if (targetNode) {
-                    const lsa = packet.lsa;
-                    const key = `${lsa.sourceId}-${lsa.sequenceNumber}`;
-                    
-                    
-                    if (!targetNode.received_lsas.has(key)) {
-                        
-                        targetNode.received_lsas.add(key);
-                        targetNode.lsa_db[lsa.sourceId] = lsa;
-                        
-                        
-                        for (const [neighborId, _] of targetNode.neighbors) {
-                            if (neighborId !== packet.receivedFrom) {
-                                this.lsaPackets.push({
-                                    lsa: lsa,
-                                    targetId: neighborId,
-                                    receivedFrom: targetNode.id,
-                                    progress: 0
-                                });
-                            }
-                        }
-                    }
-                }
-                
-                
-                this.lsaPackets.splice(i, 1);
-            }
-        }
-
-        
-        if (this.lsaPackets.length === 0) {
-            const complete = Array.from(this.nodes.values()).every(node => {
-                
-                return Array.from(this.nodes.keys()).every(otherId => 
-                    
-                    otherId === node.id || node.lsa_db[otherId] !== undefined
-                );
-            });
-            
-            if (complete) {
-                
-                for (const node of this.nodes.values()) {
-                    node.routingTable = this.calculateShortestPaths(node.id);
-                }
-                this.lsaPhaseComplete = true;
-                this.logger.log('NETWORK', 'All nodes have complete topology information');
             }
         }
     }
