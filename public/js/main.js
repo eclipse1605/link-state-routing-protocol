@@ -1036,32 +1036,39 @@
                     addEdgeBtn.click();
                 }
                 break;
-case ' ': 
-    if (network.isSimulationRunning) {
-        pauseSimulationBtn.click();
-    } else {
-        
-        resetSimulationState();
-    }
-                if (network.isSimulationRunning) {
-                    pauseSimulationBtn.click();
-                }
-                break;
-            case 'c':
-                if (!network.isSimulationRunning){
-                    clearNetworkBtn.click();
-                }
-                break;
-            case 'v':
-                resetViewBtn.click();
-                break;
-            case 'delete':
-                if (!network.isSimulationRunning && network.selectedNode){
-                    removeNodeBtn.click();
-                }
-                break;
+    case ' ': 
+        if (network.isSimulationRunning) {
+            pauseSimulationBtn.click();
+        } else {
+            
+            resetSimulationState();
         }
-    });
+        if (network.isSimulationRunning) {
+            pauseSimulationBtn.click();
+        }
+        break;
+    case 'c':
+        if (!network.isSimulationRunning){
+            clearNetworkBtn.click();
+        }
+        break;
+    case 'v':
+        resetViewBtn.click();
+        break;
+    case 'delete':
+        if (!network.isSimulationRunning && network.selectedNode){
+            removeNodeBtn.click();
+        }
+    case 'escape':
+        if (isAddingNode){
+            addNodeBtn.click();
+        }
+        if (visualization.edgeCreationState.isActive){
+            addEdgeBtn.click();
+        }
+        break;
+    }
+});
 
     
     undoButton.addEventListener('click', () => {
