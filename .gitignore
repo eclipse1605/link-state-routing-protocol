@@ -1,1 +1,3 @@
 comment_remover.py
+__pycache__/
+.venv/

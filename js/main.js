@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('networkCanvas');
     const network = new Network();
     const visualization = new Visualization(canvas, network);
@@ -167,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startLSABtn = document.getElementById('startLSA');
     const clearNetworkBtn = document.getElementById('clearNetwork');
     const resetViewBtn = document.getElementById('resetView');
+    const resetSimulationBtn = document.getElementById('resetSimulation');
     const edgeTypeSelector = document.getElementById('edgeTypeSelector');
     const undoButton = document.getElementById('undoButton');
     const redoButton = document.getElementById('redoButton');
@@ -508,8 +509,8 @@ document.addEventListener('DOMContentLoaded', () => {
         weightInput.focus();
         weightInput.select(); 
         
-        const confirmBtn = document.getElementById('confirmWeight');
-        confirmBtn.onclick = () => {
+        // Function to handle confirmation
+        const confirmWeight = () => {
             const weight = parseInt(weightInput.value);
             if (!isNaN(weight) && weight > 0){
                 callback(weight);
@@ -518,6 +519,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Please enter a valid positive number for the weight.');
             }
         };
+        
+        // Handle Enter key press
+        const handleKeyPress = (e) => {
+            if (e.key === 'Enter') {
+                confirmWeight();
+                e.preventDefault();
+            }
+        };
+        
+        // Add Enter key listener
+        weightInput.addEventListener('keypress', handleKeyPress);
+        
+        const confirmBtn = document.getElementById('confirmWeight');
+        confirmBtn.onclick = confirmWeight;
+        
+        // Remove event listener when dialog is closed
+        overlay.addEventListener('click', function onOverlayClick() {
+            weightInput.removeEventListener('keypress', handleKeyPress);
+            overlay.removeEventListener('click', onOverlayClick);
+        }, { once: true });
     };
 
     
@@ -619,18 +640,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
     startHelloBtn.addEventListener('click', () => {
+        if (network.isSimulationRunning && network.simulationPhase === 'hello') {
+            // Already running Hello phase, can't click again
+            return;
+        }
+        
         if (network.isSimulationRunning) {
-            
+            // Stop simulation if something else is running
             network.stopSimulation();
             startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
             startHelloBtn.classList.remove('active');
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
             
-            
+            // Update button states
             updateButtonStates(false);
             
-            
+            // Reset node creation UI
             isAddingNode = false;
             visualization.isAddingNode = false;  
             visualization.edgeCreationState.isActive = false;
@@ -641,19 +667,21 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.classList.remove('node-adding', 'edge-adding');
             canvas.style.cursor = 'grab';  
             
-            startHelloBtn.setAttribute('title', 'Start Hello Phase (Space)');
+            startHelloBtn.setAttribute('data-tooltip', 'Start Hello Phase (Space)');
         } else {
-            
+            // Start Hello phase
             network.startHelloPhase();
             startHelloBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Hello Phase';
             startHelloBtn.classList.add('active');
+            startHelloBtn.disabled = true; // Disable the button while Hello phase is running
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Hello Phase is running');
+            updateDisabledButtonTooltip(startHelloBtn, 'Hello Phase is running');
             
-            
+            // Update button states
             updateButtonStates(true);
             
-            
+            // Reset node creation UI
             isAddingNode = false;
             visualization.isAddingNode = false;  
             visualization.edgeCreationState.isActive = false;
@@ -663,20 +691,23 @@ document.addEventListener('DOMContentLoaded', () => {
             addEdgeBtn.classList.remove('active');
             canvas.classList.remove('node-adding', 'edge-adding');
             canvas.style.cursor = 'default';
-            
-            startHelloBtn.setAttribute('title', 'Stop Hello Phase (Space)');
         }
     });
 
     
     startLSABtn.addEventListener('click', () => {
+        if (network.isSimulationRunning && network.simulationPhase === 'lsa') {
+            // Already running LSA phase, can't click again
+            return;
+        }
+        
         if (network.isSimulationRunning){
-            
+            // Stop simulation if something else is running
             network.stopSimulation();
             startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
             startLSABtn.classList.remove('active');
             
-            
+            // Reset buttons
             addNodeBtn.disabled = false;
             addEdgeBtn.disabled = false;
             clearNetworkBtn.disabled = false;
@@ -684,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
             removeNodeBtn.disabled = !network.selectedNode;
             startHelloBtn.disabled = false;
             
-            
+            // Reset node creation UI
             isAddingNode = false;
             visualization.isAddingNode = false;  
             visualization.edgeCreationState.isActive = false;
@@ -695,25 +726,26 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.classList.remove('node-adding', 'edge-adding');
             canvas.style.cursor = 'grab';  
             
-            
+            // Update tooltips
             updateAllDisabledTooltips();
-            startLSABtn.setAttribute('title', 'Start LSA Flooding');
         } else {
-            
+            // Start LSA phase
             network.startLSAPhase();
             startLSABtn.innerHTML = '<i class="fas fa-stop"></i> Stop Flooding';
             startLSABtn.classList.add('active');
+            startLSABtn.disabled = true; // Disable the button while LSA phase is running
             startHelloBtn.disabled = true;
             updateDisabledButtonTooltip(startHelloBtn, 'LSA Flooding is running');
+            updateDisabledButtonTooltip(startLSABtn, 'LSA Flooding is running');
             
-            
+            // Disable other controls
             addNodeBtn.disabled = true;
             addEdgeBtn.disabled = true;
             clearNetworkBtn.disabled = true;
             resetViewBtn.disabled = true;
             removeNodeBtn.disabled = true;
             
-            
+            // Reset node creation UI
             isAddingNode = false;
             visualization.isAddingNode = false;  
             visualization.edgeCreationState.isActive = false;
@@ -724,32 +756,43 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.classList.remove('node-adding', 'edge-adding');
             canvas.style.cursor = 'default'; 
             
-            
+            // Update tooltips
             updateAllDisabledTooltips();
-            startLSABtn.setAttribute('title', 'Stop LSA Flooding');
         }
     });
 
     
     clearNetworkBtn.addEventListener('click', () => {
         if (!network.isSimulationRunning && confirm('Are you sure you want to clear the network?')){
-            
+            // Clear network data
             network.nodes.clear();
             network.selectedNode = null;
             network.helloPackets = [];
             network.lsaPackets = [];
             network.isSimulationRunning = false;
+            network.isSimulationComplete = false;
             network.nextNodeId = 1;
+            network.simulationPhase = null;
+            network.helloPhaseComplete = false;
+            network.lsaPhaseComplete = false;
             
-            
+            // Reset UI buttons
             startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
             startHelloBtn.classList.remove('active');
+            startHelloBtn.disabled = false;
+            startHelloBtn.removeAttribute('data-tooltip');
+            
             startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
             startLSABtn.classList.remove('active');
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
             
+            pauseSimulationBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+            pauseSimulationBtn.classList.remove('active');
+            pauseSimulationBtn.disabled = true;
+            updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
             
+            // Reset node creation UI
             isAddingNode = false;
             visualization.isAddingNode = false;  
             visualization.edgeCreationState.isActive = false;
@@ -760,26 +803,44 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.classList.remove('node-adding', 'edge-adding');
             canvas.style.cursor = 'grab';  
             
-            
+            // Reset button states
             addNodeBtn.disabled = false;
             addEdgeBtn.disabled = false;
             removeNodeBtn.disabled = true;
             updateDisabledButtonTooltip(removeNodeBtn, 'No node selected');
-            startHelloBtn.disabled = false;
             
+            // Reset path finding UI
+            const pathFinderInfo = document.querySelector('.path-finder-info');
+            if (pathFinderInfo) {
+                pathFinderInfo.textContent = 'Complete LSA flooding to enable path finding';
+                pathFinderInfo.style.color = '#ff9800';
+            }
+            document.getElementById('sourceNodeSelect').disabled = true;
+            document.getElementById('destNodeSelect').disabled = true;
+            document.getElementById('findPathBtn').disabled = true;
+            document.getElementById('clearPathBtn').disabled = true;
             
+            // Clear path highlight if any
+            visualization.clearPath();
+            
+            // Clear node info and routing table
             document.getElementById('nodeInfo').innerHTML = 'No node selected';
             document.getElementById('routingTable').innerHTML = 'No routing information available';
             
-            
+            // Reset visualization
             visualization.updateNodeDetails(null);
             visualization.render();
             
-            
+            // Reset view
             visualization.resetView();
             
+            // Update history buttons
+            updateHistoryButtons();
             
+            // Save state
             saveState();
+            
+            network.logger.log('NETWORK', 'Network cleared and all simulation states reset');
         }
     });
 
@@ -975,8 +1036,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     addEdgeBtn.click();
                 }
                 break;
-            case ' ':
-                startHelloBtn.click();
+case ' ': // Spacebar handles pause/resume
+    if (network.isSimulationRunning) {
+        pauseSimulationBtn.click();
+    } else {
+        // If not running, reset the simulation state
+        resetSimulationState();
+    }
+                if (network.isSimulationRunning) {
+                    pauseSimulationBtn.click();
+                }
                 break;
             case 'c':
                 if (!network.isSimulationRunning){
@@ -1033,33 +1102,35 @@ document.addEventListener('DOMContentLoaded', () => {
     updateHistoryButtons();
 
     
-    function animate(){
+    function animate() {
         if (network.isSimulationRunning) {
             network.simulationStep();
             
-            
+            // Update node details
             if (network.selectedNode) {
                 visualization.updateNodeDetails(network.selectedNode);
             }
             
-            
+            // Handle selection updates
             if (network.selectedNodeNeedsUpdate) {
                 visualization.updateNodeDetails(network.selectedNode);
                 network.selectedNodeNeedsUpdate = false;
             }
             
-            
+            // Handle Hello phase completion
             if (network.simulationPhase === 'hello' && network.helloPhaseComplete) {
                 startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
                 startHelloBtn.classList.remove('active');
+                startHelloBtn.disabled = false;
+                startHelloBtn.removeAttribute('data-tooltip');
                 startLSABtn.disabled = false;
                 startLSABtn.removeAttribute('data-tooltip');
                 network.isSimulationRunning = false;
                 
-                
+                // Update routing tables
                 network.updateRoutingTables();
                 
-                
+                // Update node details
                 if (network.selectedNode) {
                     visualization.updateNodeDetails(network.selectedNode);
                 }
@@ -1070,13 +1141,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateButtonStates(false);
             }
             
-            
+            // Handle LSA phase completion
             if (network.simulationPhase === 'lsa' && network.lsaPhaseComplete) {
                 startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
                 startLSABtn.classList.remove('active');
+                startLSABtn.disabled = false;
+                startLSABtn.removeAttribute('data-tooltip');
                 startHelloBtn.disabled = false;
+                startHelloBtn.removeAttribute('data-tooltip');
                 network.isSimulationRunning = false;
                 canvas.style.cursor = 'grab';
+                
+                // Enable path finding after LSA flooding is complete
+                const pathFinderInfo = document.querySelector('.path-finder-info');
+                if (pathFinderInfo) {
+                    pathFinderInfo.textContent = 'Find shortest path between routers';
+                    pathFinderInfo.style.color = '#4CAF50';
+                }
+                
+                document.getElementById('sourceNodeSelect').disabled = false;
+                document.getElementById('destNodeSelect').disabled = false;
+                document.getElementById('findPathBtn').disabled = false;
+                document.getElementById('clearPathBtn').disabled = false;
+                
+                network.isSimulationComplete = true;
+                network.logger.log('NETWORK', 'LSA flooding complete, path finding now available');
                 
                 updateButtonStates(false);
             }
@@ -1675,4 +1764,329 @@ document.addEventListener('DOMContentLoaded', () => {
         
         contextMenu.style.display = 'none';
     });
+
+    // Add UI for shortest path feature
+    const pathFinderContainer = document.createElement('div');
+    pathFinderContainer.className = 'path-finder-container';
+    pathFinderContainer.innerHTML = `
+        <div class="path-finder-header">Find Shortest Path</div>
+        <div class="path-finder-content">
+            <div class="path-finder-info">Complete LSA flooding to enable path finding</div>
+            <div class="path-finder-row">
+                <label for="sourceNodeSelect">Source:</label>
+                <select id="sourceNodeSelect" disabled></select>
+            </div>
+            <div class="path-finder-row">
+                <label for="destNodeSelect">Destination:</label>
+                <select id="destNodeSelect" disabled></select>
+            </div>
+            <button id="findPathBtn" disabled>Find Path</button>
+            <button id="clearPathBtn" disabled>Clear</button>
+        </div>
+    `;
+
+    // Add styles for path finder
+    const pathFinderStyle = document.createElement('style');
+    pathFinderStyle.textContent = `
+        .path-finder-container {
+            position: absolute;
+            top: 65px; /* Position below the toolbar */
+            left: 10px; /* Position on the left side */
+            background-color: #2d2d2d;
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            padding: 10px;
+            width: 240px;
+            z-index: 100;
+        }
+        
+        .path-finder-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        
+        .path-finder-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .path-finder-info {
+            color: #ff9800;
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        
+        .path-finder-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .path-finder-row label {
+            color: #fff;
+            margin-right: 10px;
+        }
+        
+        .path-finder-row select {
+            flex: 1;
+            padding: 4px;
+            background-color: #3d3d3d;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 3px;
+        }
+        
+        .path-finder-row select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #findPathBtn, #clearPathBtn {
+            padding: 6px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        
+        #findPathBtn:disabled, #clearPathBtn:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        #clearPathBtn {
+            background-color: #f44336;
+        }
+        
+        #findPathBtn:hover:not(:disabled), #clearPathBtn:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+    `;
+
+    document.body.appendChild(pathFinderContainer);
+    document.head.appendChild(pathFinderStyle);
+
+    // Function to update node selectors
+    function updateNodeSelectors() {
+        const sourceSelect = document.getElementById('sourceNodeSelect');
+        const destSelect = document.getElementById('destNodeSelect');
+        
+        // Save current selections
+        const currentSource = sourceSelect.value;
+        const currentDest = destSelect.value;
+        
+        // Clear options
+        sourceSelect.innerHTML = '';
+        destSelect.innerHTML = '';
+        
+        // Add options for each node
+        for (const nodeId of network.nodes.keys()) {
+            const sourceOption = document.createElement('option');
+            sourceOption.value = nodeId;
+            sourceOption.text = `Router ${nodeId}`;
+            sourceSelect.appendChild(sourceOption);
+            
+            const destOption = document.createElement('option');
+            destOption.value = nodeId;
+            destOption.text = `Router ${nodeId}`;
+            destSelect.appendChild(destOption);
+        }
+        
+        // Restore selections if they still exist
+        if (currentSource && [...network.nodes.keys()].includes(parseInt(currentSource))) {
+            sourceSelect.value = currentSource;
+        }
+        
+        if (currentDest && [...network.nodes.keys()].includes(parseInt(currentDest))) {
+            destSelect.value = currentDest;
+        }
+    }
+
+    // Event listeners for path finding
+    document.getElementById('findPathBtn').addEventListener('click', () => {
+        // Check if LSA flooding is complete
+        if (!network.isSimulationComplete) {
+            alert('Cannot find path: Complete LSA flooding first');
+            return;
+        }
+        
+        const sourceId = parseInt(document.getElementById('sourceNodeSelect').value);
+        const destId = parseInt(document.getElementById('destNodeSelect').value);
+        
+        if (sourceId === destId) {
+            alert('Source and destination cannot be the same');
+            return;
+        }
+        
+        visualization.findAndShowPath(sourceId, destId);
+    });
+
+    document.getElementById('clearPathBtn').addEventListener('click', () => {
+        visualization.clearPath();
+    });
+
+    // Update selectors when nodes change
+    const origAddNode = network.addNode;
+    network.addNode = function(x, y) {
+        const node = origAddNode.call(this, x, y);
+        updateNodeSelectors();
+        return node;
+    };
+
+    const origRemoveNode = network.removeNode;
+    network.removeNode = function(nodeId) {
+        origRemoveNode.call(this, nodeId);
+        updateNodeSelectors();
+    };
+
+    // Initialize selectors
+    setTimeout(updateNodeSelectors, 0);
+
+    // Reset all simulation states when page loads/refreshes
+    window.addEventListener('load', () => {
+        // Convert all title attributes to data-tooltip for consistent styling
+        document.querySelectorAll('[title]').forEach(el => {
+            if (el.title) {
+                el.setAttribute('data-tooltip', el.title);
+                el.removeAttribute('title');
+            }
+        });
+
+        // Reset simulation phase flags
+        network.simulationPhase = null;
+        network.helloPhaseComplete = false;
+        network.lsaPhaseComplete = false;
+        network.isSimulationRunning = false;
+        network.isSimulationComplete = false;
+        
+        // Reset UI buttons
+        if (startHelloBtn) {
+            startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
+            startHelloBtn.classList.remove('active');
+            startHelloBtn.disabled = false;
+            startHelloBtn.removeAttribute('data-tooltip');
+        }
+        
+        if (startLSABtn) {
+            startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
+            startLSABtn.classList.remove('active');
+            startLSABtn.disabled = true;
+            updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
+        }
+        
+        if (pauseSimulationBtn) {
+            pauseSimulationBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+            pauseSimulationBtn.classList.remove('active');
+            pauseSimulationBtn.disabled = true;
+            updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
+        }
+        
+        // Reset path finding UI
+        const pathFinderInfo = document.querySelector('.path-finder-info');
+        if (pathFinderInfo) {
+            pathFinderInfo.textContent = 'Complete LSA flooding to enable path finding';
+            pathFinderInfo.style.color = '#ff9800';
+        }
+        
+        const sourceSelect = document.getElementById('sourceNodeSelect');
+        const destSelect = document.getElementById('destNodeSelect');
+        const findPathBtn = document.getElementById('findPathBtn');
+        const clearPathBtn = document.getElementById('clearPathBtn');
+        
+        if (sourceSelect) sourceSelect.disabled = true;
+        if (destSelect) destSelect.disabled = true;
+        if (findPathBtn) findPathBtn.disabled = true;
+        if (clearPathBtn) clearPathBtn.disabled = true;
+        
+        // Clear path highlighting
+        if (visualization) {
+            visualization.clearPath();
+        }
+        
+        network.logger.log('SYSTEM', 'Page refreshed, simulation states reset');
+    });
+
+    // Add event listener for Reset Simulation button
+    resetSimulationBtn.addEventListener('click', () => {
+        if (!network.isSimulationRunning && confirm('Reset simulation state? This will keep your network topology but clear all simulation data.')) {
+            // Reset simulation states without clearing nodes
+            resetSimulationState();
+            
+            network.logger.log('NETWORK', 'Simulation state reset, network topology preserved');
+        }
+    });
+    
+    // Function to reset simulation state without clearing the network
+    function resetSimulationState() {
+        // Clear simulation packets
+        network.helloPackets = [];
+        network.lsaPackets = [];
+        
+        // Reset simulation flags
+        network.isSimulationRunning = false;
+        network.isSimulationComplete = false;
+        network.simulationPhase = null;
+        network.helloPhaseComplete = false;
+        network.lsaPhaseComplete = false;
+        
+        // Clear LSA data and routing tables for all nodes
+        for (const node of network.nodes.values()) {
+            node.lsa_seq = 0;
+            node.lsa_db = {};
+            node.receivedLSAs = new Set();
+            node.forwardedTo = new Map();
+            node.routingTable.clear();
+            node.isActive = false;
+        }
+        
+        // Reset UI buttons
+        startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
+        startHelloBtn.classList.remove('active');
+        startHelloBtn.disabled = false;
+        startHelloBtn.removeAttribute('data-tooltip');
+        
+        startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
+        startLSABtn.classList.remove('active');
+        startLSABtn.disabled = true;
+        updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
+        
+        pauseSimulationBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+        pauseSimulationBtn.classList.remove('active');
+        pauseSimulationBtn.disabled = true;
+        updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
+        
+        // Reset path finding UI
+        const pathFinderInfo = document.querySelector('.path-finder-info');
+        if (pathFinderInfo) {
+            pathFinderInfo.textContent = 'Complete LSA flooding to enable path finding';
+            pathFinderInfo.style.color = '#ff9800';
+        }
+        
+        const sourceSelect = document.getElementById('sourceNodeSelect');
+        const destSelect = document.getElementById('destNodeSelect');
+        const findPathBtn = document.getElementById('findPathBtn');
+        const clearPathBtn = document.getElementById('clearPathBtn');
+        
+        if (sourceSelect) sourceSelect.disabled = true;
+        if (destSelect) destSelect.disabled = true;
+        if (findPathBtn) findPathBtn.disabled = true;
+        if (clearPathBtn) clearPathBtn.disabled = true;
+        
+        // Clear path highlighting
+        visualization.clearPath();
+        
+        // Update node info if a node is selected
+        if (network.selectedNode) {
+            visualization.updateNodeDetails(network.selectedNode);
+        }
+        
+        // Re-render the visualization
+        visualization.render();
+    }
 }); 

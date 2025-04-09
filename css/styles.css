@@ -914,4 +914,50 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* Tooltip styling */
+[title], [data-tooltip] {
+    position: relative;
+}
+
+[title]:hover::after, 
+[data-tooltip]:hover::after {
+    content: attr(title);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 100%;
+    margin-top: 5px;
+    background-color: #2d2d2d;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    pointer-events: none;
+    border: 1px solid #555;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Prioritize data-tooltip over title */
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+}
+
+[title]:hover::before,
+[data-tooltip]:hover::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 100%;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid #2d2d2d;
+    z-index: 1001;
+    pointer-events: none;
 } 

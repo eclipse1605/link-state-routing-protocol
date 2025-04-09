@@ -29,6 +29,13 @@ class Visualization {
         this.nodeDragColor = '#f5a742';
         this.nodeIsolatedColor = '#808080'; 
 
+        this.shortestPath = {
+            active: false,
+            path: [],
+            sourceId: null,
+            destId: null
+        };
+
         this.setupEventListeners();
         this.resizeCanvas();
 
@@ -576,7 +583,8 @@ class Visualization {
             for (const [neighborId, neighbor] of node.neighbors) {
                 const neighborNode = this.network.nodes.get(neighborId);
                 if (neighborNode) {
-                    this.drawEdge(node, neighborNode, neighbor.weight);
+                    const isPathEdge = this.isEdgeInShortestPath(node.id, neighborId);
+                    this.drawEdge(node, neighborNode, neighbor.weight, isPathEdge);
                 }
             }
         }
@@ -602,24 +610,34 @@ class Visualization {
         this.ctx.arc(node.x, node.y, this.nodeRadius, 0, Math.PI * 2);
         
         
-        if (node.isIsolated) {
-            this.ctx.fillStyle = '#808080'; 
-            this.ctx.strokeStyle = '#555555';
-            this.ctx.setLineDash([5, 2]); 
-        } else if (node === this.network.selectedNode) {
-            this.ctx.fillStyle = '#4CAF50'; 
+        if (this.shortestPath.active && 
+            (node.id === this.shortestPath.sourceId || 
+             node.id === this.shortestPath.destId)) {
+            this.ctx.fillStyle = node.id === this.shortestPath.sourceId ? '#1b5e20' : '#e65100';
             this.ctx.strokeStyle = '#000';
-            this.ctx.setLineDash([]); 
+            this.ctx.setLineDash([]);
+        } else if (this.shortestPath.active && this.shortestPath.path.includes(node.id)) {
+            this.ctx.fillStyle = '#ff9800';
+            this.ctx.strokeStyle = '#000';
+            this.ctx.setLineDash([]);
+        } else if (node.isIsolated) {
+            this.ctx.fillStyle = '#808080';
+            this.ctx.strokeStyle = '#555555';
+            this.ctx.setLineDash([5, 2]);
+        } else if (node === this.network.selectedNode) {
+            this.ctx.fillStyle = '#4CAF50';
+            this.ctx.strokeStyle = '#000';
+            this.ctx.setLineDash([]);
         } else {
-            this.ctx.fillStyle = '#2d2d2d'; 
+            this.ctx.fillStyle = '#2d2d2d';
             this.ctx.strokeStyle = node.isActive ? '#4CAF50' : '#666';
-            this.ctx.setLineDash([]); 
+            this.ctx.setLineDash([]);
         }
         
         this.ctx.fill();
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
-        this.ctx.setLineDash([]); 
+        this.ctx.setLineDash([]);
         
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '14px Arial';
@@ -638,7 +656,7 @@ class Visualization {
         this.ctx.stroke();
     }
 
-    drawEdge(node1, node2, weight) {
+    drawEdge(node1, node2, weight, isPathEdge = false) {
         
         const isBidirectional = node2.neighbors.has(node1.id);
         
@@ -646,8 +664,16 @@ class Visualization {
         this.ctx.beginPath();
         this.ctx.moveTo(node1.x, node1.y);
         this.ctx.lineTo(node2.x, node2.y);
-        this.ctx.strokeStyle = '#666';
-        this.ctx.lineWidth = 2;
+        
+        
+        if (isPathEdge) {
+            this.ctx.strokeStyle = '#ff9800';
+            this.ctx.lineWidth = 4;
+        } else {
+            this.ctx.strokeStyle = '#666';
+            this.ctx.lineWidth = 2;
+        }
+        
         this.ctx.stroke();
         
         
@@ -676,9 +702,9 @@ class Visualization {
                 midY - arrowSize/2 * Math.sin(angle + Math.PI/6)
             );
             this.ctx.closePath();
-            this.ctx.fillStyle = '#666'; 
+            this.ctx.fillStyle = isPathEdge ? '#ff9800' : '#666';
             this.ctx.fill();
-            this.ctx.strokeStyle = '#444'; 
+            this.ctx.strokeStyle = isPathEdge ? '#e65100' : '#444';
             this.ctx.lineWidth = 1;
             this.ctx.stroke();
         }
@@ -689,6 +715,11 @@ class Visualization {
         
         
         const weightOffsetY = !isBidirectional ? 15 : 0;
+        
+        this.ctx.beginPath();
+        this.ctx.arc(midX, midY - weightOffsetY, 10, 0, Math.PI * 2);
+        this.ctx.fillStyle = isPathEdge ? '#ff9800' : '#444';
+        this.ctx.fill();
         
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '12px Arial';
@@ -811,5 +842,169 @@ class Visualization {
                     .attr('stroke-dasharray', null);
             }
         }
+    }
+
+    findAndShowPath(sourceId, destId) {
+        const source = this.network.nodes.get(sourceId);
+        const dest = this.network.nodes.get(destId);
+        
+        if (!source || !dest) {
+            alert('Source or destination node not found');
+            return;
+        }
+        
+        // Always calculate a fresh path when manually requested
+        const path = this.calculateShortestPath(sourceId, destId, true);
+        
+        if (path.length === 0) {
+            alert('No path found between the selected nodes');
+            return;
+        }
+        
+        this.shortestPath = {
+            active: true,
+            path: path,
+            sourceId: sourceId,
+            destId: destId
+        };
+        
+        const pathStr = path.join(' → ');
+        const totalCost = this.calculatePathCost(path);
+        
+        this.network.logger.log('INFO', `Shortest path from Router ${sourceId} to Router ${destId}: ${pathStr} (Total cost: ${totalCost})`);
+        
+        this.render();
+    }
+    
+    calculatePathCost(path) {
+        let totalCost = 0;
+        
+        for (let i = 0; i < path.length - 1; i++) {
+            const currentNode = this.network.nodes.get(path[i]);
+            const nextNodeId = path[i + 1];
+            
+            if (currentNode && currentNode.neighbors.has(nextNodeId)) {
+                totalCost += currentNode.neighbors.get(nextNodeId).weight;
+            }
+        }
+        
+        return totalCost;
+    }
+    
+    clearPath() {
+        this.shortestPath = {
+            active: false,
+            path: [],
+            sourceId: null,
+            destId: null
+        };
+        
+        this.render();
+    }
+    
+    calculateShortestPath(sourceId, destId, forceRecalculate = false) {
+        const source = this.network.nodes.get(sourceId);
+        
+        // Only use routing table if not forcing recalculation and routing table exists
+        if (!forceRecalculate && source.routingTable && source.routingTable.has(destId)) {
+            const route = source.routingTable.get(destId);
+            if (route && route.path && route.path.length > 0) {
+                this.network.logger.log('DEBUG', `Using existing path from routing table: ${route.path.join(' → ')}`);
+                return route.path;
+            }
+        }
+        
+        // Calculate fresh path using Dijkstra's algorithm
+        this.network.logger.log('DEBUG', `Calculating fresh shortest path from ${sourceId} to ${destId}`);
+        
+        const distances = new Map();
+        const previous = new Map();
+        const unvisited = new Set();
+        
+        // Initialize distances
+        for (const nodeId of this.network.nodes.keys()) {
+            distances.set(nodeId, Infinity);
+            previous.set(nodeId, null);
+            unvisited.add(nodeId);
+        }
+        
+        distances.set(sourceId, 0);
+        
+        while (unvisited.size > 0) {
+            // Find node with minimum distance
+            let current = null;
+            let minDistance = Infinity;
+            
+            for (const nodeId of unvisited) {
+                if (distances.get(nodeId) < minDistance) {
+                    minDistance = distances.get(nodeId);
+                    current = nodeId;
+                }
+            }
+            
+            // If we can't find a node or we reached destination, break
+            if (current === null || minDistance === Infinity) {
+                break;
+            }
+            
+            // Remove current from unvisited
+            unvisited.delete(current);
+            
+            // If we reached destination, we can stop
+            if (current === destId) {
+                break;
+            }
+            
+            // Update distances to neighbors
+            const currentNode = this.network.nodes.get(current);
+            for (const [neighborId, data] of currentNode.neighbors) {
+                if (unvisited.has(neighborId)) {
+                    const newDistance = distances.get(current) + data.weight;
+                    if (newDistance < distances.get(neighborId)) {
+                        distances.set(neighborId, newDistance);
+                        previous.set(neighborId, current);
+                    }
+                }
+            }
+        }
+        
+        // Build path
+        const path = [];
+        let current = destId;
+        
+        if (previous.get(destId) !== null || destId === sourceId) {
+            while (current !== null) {
+                path.unshift(current);
+                current = previous.get(current);
+            }
+        }
+        
+        // Log the path and its cost for debugging
+        if (path.length > 0) {
+            const pathCost = distances.get(destId);
+            this.network.logger.log('DEBUG', `Calculated shortest path from ${sourceId} to ${destId}: ${path.join(' → ')} (Cost: ${pathCost})`);
+        } else {
+            this.network.logger.log('DEBUG', `No path found from ${sourceId} to ${destId}`);
+        }
+        
+        return path;
+    }
+
+    isEdgeInShortestPath(sourceId, targetId) {
+        if (!this.shortestPath.active || this.shortestPath.path.length < 2) {
+            return false;
+        }
+        
+        for (let i = 0; i < this.shortestPath.path.length - 1; i++) {
+            const current = this.shortestPath.path[i];
+            const next = this.shortestPath.path[i + 1];
+            
+            if ((current === sourceId && next === targetId) || 
+                (current === targetId && next === sourceId)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 } 
