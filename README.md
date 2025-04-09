@@ -112,3 +112,11 @@ The simulator implements the Link-State Routing protocol with the following comp
    ```
    http://localhost:5000
    ```
+
+## To be implemented
+1. Fixing import and export feature
+2. Refactoring the code to be more consistent
+3. Improved Error handling
+4. More intuitive controls
+5. Guide to keybindings
+6. Custom keybindings
