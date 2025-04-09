@@ -5,10 +5,11 @@ An interactive web-based simulator for understanding and visualizing link-state 
 ## Features
 
 ### Network Manipulation
+
 - **Add Nodes**: Click the "Add Node" button and then click anywhere on the canvas to place a router
 - **Move Nodes**: Click and drag any router to reposition it
 - **Remove Nodes**: Select a router and click the "Remove Node" button to delete it and all its connections
-- **Add Edges**: 
+- **Add Edges**:
   - Click the "Add Edge" button
   - Click on a source router
   - Drag to the destination router
@@ -17,12 +18,14 @@ An interactive web-based simulator for understanding and visualizing link-state 
 - **Delete Edges**: Click the delete (trash) icon next to any neighbor in the router details panel
 
 ### Simulation
+
 - **Start/Stop**: Toggle the simulation using the Start/Stop button
 - **Hello Packets**: Visualizes hello packet transmission between routers during simulation
 - **LSA Updates**: Shows Link State Advertisement updates as routers communicate
 - **Real-time Updates**: Routing tables are updated automatically as the network topology changes
 
 ### Visualization
+
 - **Router Details**: Shows detailed information about the selected router:
   - Router ID
   - Position coordinates
@@ -98,6 +101,7 @@ The simulator implements the Link-State Routing protocol with the following comp
 1. Clone or download this repository
 2. Navigate to the project directory
 3. Install the required dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -105,15 +109,19 @@ The simulator implements the Link-State Routing protocol with the following comp
 ## Running the Application
 
 1. Start the Flask server:
+
    ```bash
    python app.py
    ```
+
 2. Open your web browser and navigate to:
-   ```
+
+   ```txt
    http://localhost:5000
    ```
 
 ## To be implemented
+
 1. Fixing import and export feature
 2. Refactoring the code to be more consistent
 3. Improved Error handling
