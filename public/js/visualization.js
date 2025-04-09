@@ -853,7 +853,7 @@ class Visualization {
             return;
         }
         
-        // Always calculate a fresh path when manually requested
+        
         const path = this.calculateShortestPath(sourceId, destId, true);
         
         if (path.length === 0) {
@@ -905,7 +905,7 @@ class Visualization {
     calculateShortestPath(sourceId, destId, forceRecalculate = false) {
         const source = this.network.nodes.get(sourceId);
         
-        // Only use routing table if not forcing recalculation and routing table exists
+        
         if (!forceRecalculate && source.routingTable && source.routingTable.has(destId)) {
             const route = source.routingTable.get(destId);
             if (route && route.path && route.path.length > 0) {
@@ -914,14 +914,14 @@ class Visualization {
             }
         }
         
-        // Calculate fresh path using Dijkstra's algorithm
+        
         this.network.logger.log('DEBUG', `Calculating fresh shortest path from ${sourceId} to ${destId}`);
         
         const distances = new Map();
         const previous = new Map();
         const unvisited = new Set();
         
-        // Initialize distances
+        
         for (const nodeId of this.network.nodes.keys()) {
             distances.set(nodeId, Infinity);
             previous.set(nodeId, null);
@@ -931,7 +931,7 @@ class Visualization {
         distances.set(sourceId, 0);
         
         while (unvisited.size > 0) {
-            // Find node with minimum distance
+            
             let current = null;
             let minDistance = Infinity;
             
@@ -942,20 +942,20 @@ class Visualization {
                 }
             }
             
-            // If we can't find a node or we reached destination, break
+            
             if (current === null || minDistance === Infinity) {
                 break;
             }
             
-            // Remove current from unvisited
+            
             unvisited.delete(current);
             
-            // If we reached destination, we can stop
+            
             if (current === destId) {
                 break;
             }
             
-            // Update distances to neighbors
+            
             const currentNode = this.network.nodes.get(current);
             for (const [neighborId, data] of currentNode.neighbors) {
                 if (unvisited.has(neighborId)) {
@@ -968,7 +968,7 @@ class Visualization {
             }
         }
         
-        // Build path
+        
         const path = [];
         let current = destId;
         
@@ -979,7 +979,7 @@ class Visualization {
             }
         }
         
-        // Log the path and its cost for debugging
+        
         if (path.length > 0) {
             const pathCost = distances.get(destId);
             this.network.logger.log('DEBUG', `Calculated shortest path from ${sourceId} to ${destId}: ${path.join(' → ')} (Cost: ${pathCost})`);

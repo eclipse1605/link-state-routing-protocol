@@ -916,7 +916,7 @@ body {
     gap: 8px;
 }
 
-/* Tooltip styling */
+
 [title], [data-tooltip] {
     position: relative;
 }
@@ -941,7 +941,7 @@ body {
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-/* Prioritize data-tooltip over title */
+
 [data-tooltip]:hover::after {
     content: attr(data-tooltip);
 }
