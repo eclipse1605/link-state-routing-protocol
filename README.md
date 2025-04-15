@@ -2,6 +2,9 @@
 
 An interactive web-based simulator for understanding and visualizing link-state routing protocols in computer networks.
 
+# Openable URL
+[https://link-state-routing-simulation.vercel.app/](https://link-state-routing-simulation.vercel.app/)
+
 ## Features
 
 ### Network Manipulation
@@ -91,40 +94,12 @@ The simulator implements the Link-State Routing protocol with the following comp
 - Supports dynamic network topology changes
 - Provides interactive user interface for network manipulation
 
-## Prerequisites
-
-- Python 3.7 or higher
-- pip (Python package installer)
-
-## Installation
-
-1. Clone or download this repository
-2. Navigate to the project directory
-3. Install the required dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Running the Application
-
-1. Start the Flask server:
-
-   ```bash
-   python app.py
-   ```
-
-2. Open your web browser and navigate to:
-
-   ```txt
-   http://localhost:5000
-   ```
-
-## To be implemented
+# To be implemented
 
 1. Fixing import and export feature
-2. Refactoring the code to be more consistent
-3. Improved Error handling
-4. More intuitive controls
-5. Guide to keybindings
-6. Custom keybindings
+2. Fixing undo and redo features
+3. Refactoring the code to be more consistent
+4. Improved Error handling
+5. More intuitive controls
+6. Guide to keybindings
+7. Custom keybindings
