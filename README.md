@@ -2,7 +2,8 @@
 
 An interactive web-based simulator for understanding and visualizing link-state routing protocols in computer networks.
 
-# Openable URL
+## Openable URL
+
 [https://link-state-routing-simulation.vercel.app/](https://link-state-routing-simulation.vercel.app/)
 
 ## Features
@@ -94,7 +95,7 @@ The simulator implements the Link-State Routing protocol with the following comp
 - Supports dynamic network topology changes
 - Provides interactive user interface for network manipulation
 
-# To be implemented
+## To be implemented
 
 1. Fixing import and export feature
 2. Fixing undo and redo features
