@@ -228,6 +228,11 @@ class Network {
 
     processLSAPhase() {
         if (this.lsaPhaseComplete) {
+            
+            for (const node of this.nodes.values()) {
+                node.updateRoutingTable();
+            }
+            this.logger.log('ROUTING', 'All routing tables updated using Dijkstra after LSA flooding');
             this.stopSimulation();
             this.logger.log('NETWORK', 'LSA flooding phase complete');
             return;

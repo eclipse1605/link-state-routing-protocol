@@ -22,12 +22,14 @@
                 neighbors: Array.from(node.neighbors.entries()).map(([neighborId, data]) => ({
                     id: neighborId,
                     weight: data.weight
-                }))
+                })),
+                isActive: node.isActive 
             })),
             selectedNodeId: network.selectedNode ? network.selectedNode.id : null,
             nextNodeId: network.nextNodeId
         };
 
+        console.log('[saveState] Saving state:', state);
         if (history.current !== null){
             history.past.push(history.current);
             if (history.past.length > history.maxSize){
@@ -38,10 +40,12 @@
         history.future = [];
         
         updateHistoryButtons();
+        console.log('[saveState] State saved. Past length:', history.past.length, 'Future cleared.');
     }
 
     function restoreState(state){
         if (!state) return;
+        console.log('[restoreState] Restoring state:', state);
         
         network.nodes.clear();
         network.selectedNode = null;
@@ -52,6 +56,7 @@
         const nodeMap = new Map();
         for (const nodeData of state.nodes){
             const node = network.addNode(nodeData.x, nodeData.y, nodeData.id);
+            node.isActive = (typeof nodeData.isActive !== 'undefined') ? nodeData.isActive : true; 
             nodeMap.set(nodeData.id, node);
         }
         
@@ -82,6 +87,12 @@
             }
         }
         
+        for (const node of nodeMap.values()) {
+            if (node.neighbors && node.neighbors.size > 0) {
+                node.isActive = true;
+            }
+        }
+        
         if (state.selectedNodeId !== null){
             network.selectedNode = nodeMap.get(state.selectedNodeId) || null;
             visualization.selectedNode = network.selectedNode;
@@ -92,7 +103,10 @@
             removeNodeBtn.disabled = true;
         }
         
+        updateNodeSelectors();
+        updateNetworkStatus();
         visualization.render();
+        console.log('[restoreState] State restored.');
     }
 
     function updateHistoryButtons(){
@@ -108,17 +122,13 @@
 
     function undo(){
         if (history.past.length === 0 || network.isSimulationRunning) return;
-        
+        console.log('[undo] Undo called. Past length:', history.past.length, 'Future length:', history.future.length);
         history.future.unshift(history.current);
-        
         const previousState = history.past.pop();
         history.current = previousState;
-        
-        
+        console.log('[undo] Restoring previous state:', previousState);
         restoreState(previousState);
         updateHistoryButtons();
-        
-        
         undoButton.classList.add('action-success');
         setTimeout(() => {
             undoButton.classList.remove('action-success');
@@ -128,19 +138,13 @@
     
     function redo(){
         if (history.future.length === 0 || network.isSimulationRunning) return;
-        
-        
+        console.log('[redo] Redo called. Past length:', history.past.length, 'Future length:', history.future.length);
         history.past.push(history.current);
-        
-        
         const nextState = history.future.shift();
         history.current = nextState;
-        
-        
+        console.log('[redo] Restoring next state:', nextState);
         restoreState(nextState);
         updateHistoryButtons();
-        
-        
         redoButton.classList.add('action-success');
         setTimeout(() => {
             redoButton.classList.remove('action-success');
@@ -233,15 +237,22 @@
             return;
         }
 
+        
+        if (network.isSimulationRunning) {
+            if (network.simulationPhase === 'hello') {
+                routingTableDiv.innerHTML = '<div class="route-status">Live Routing Table (Hello Phase in Progress)</div><div class="no-route">Routing table will be available after LSA flooding completes.</div>';
+                return;
+            }
+            if (network.simulationPhase === 'lsa' && !network.lsaPhaseComplete) {
+                routingTableDiv.innerHTML = '<div class="route-status">LSA Flooding In Progress</div><div class="no-route">Routing table will be available after LSA flooding completes.</div>';
+                return;
+            }
+        }
+
         let html = '';
         if (node.routingTable.size === 0){
             html = '<div class="no-route">No routes available</div>';
         } else {
-            if (network.isSimulationRunning && network.simulationPhase === 'hello') {
-                html += '<div class="route-status">Live Routing Table (Hello Phase in Progress)</div>';
-            }
-            
-            
             html += `
                 <table class="routing-table">
                     <thead>
@@ -255,8 +266,7 @@
                     </thead>
                     <tbody>
             `;
-            
-            
+
             html += `
                 <tr>
                     <td>127.0.0.0</td>
@@ -287,8 +297,7 @@
                     <td>0</td>
                 </tr>
             `;
-            
-            
+
             for (const [neighborId, neighborData] of node.neighbors) {
                 html += `
                     <tr>
@@ -300,22 +309,19 @@
                     </tr>
                 `;
             }
-            
-            
+
             for (const [destId, route] of node.routingTable){
                 const destNode = network.nodes.get(destId);
                 if (!destNode) continue;
-                
+
                 const nextHopId = route.nextHop;
                 const nextHopNode = nextHopId ? network.nodes.get(nextHopId) : null;
                 const costDisplay = route.cost === Infinity ? '∞' : route.cost;
-                
-                
-                
+
                 const gatewayIP = nextHopId ? 
                     (node.neighbors.has(nextHopId) ? `10.0.${nextHopId}.1` : `10.0.${route.path[1]}.1`) : 
                     '-';
-                
+
                 html += `
                     <tr>
                         <td>10.0.${destId}.0</td>
@@ -326,8 +332,7 @@
                     </tr>
                 `;
             }
-            
-            
+
             html += `
                 <tr>
                     <td>0.0.0.0</td>
@@ -337,19 +342,18 @@
                     <td>10</td>
                 </tr>
             `;
-            
+
             html += `
                     </tbody>
                 </table>
             `;
-            
-            
+
             html += `<div class="path-info-header">Path Information</div>`;
-            
+
             for (const [destId, route] of node.routingTable){
                 const costDisplay = route.cost === Infinity ? 
                     '<span class="infinity-symbol">∞</span>' : route.cost;
-                
+
                 html += `
                     <div class="route-entry">
                         <div class="route-header">
@@ -594,7 +598,7 @@
             
             
             isAddingNode = false;
-            visualization.isAddingNode = false; 
+            visualization.isAddingNode = false;  
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addNodeBtn.classList.remove('active');
             addNodeBtn.disabled = true;
@@ -781,9 +785,6 @@
             startHelloBtn.classList.remove('active');
             startHelloBtn.disabled = false;
             startHelloBtn.removeAttribute('data-tooltip');
-            
-            startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
-            startLSABtn.classList.remove('active');
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
             
@@ -1099,7 +1100,8 @@
             neighbors: Array.from(node.neighbors.entries()).map(([neighborId, data]) => ({
                 id: neighborId,
                 weight: data.weight
-            }))
+            })),
+            isActive: node.isActive 
         })),
         selectedNodeId: network.selectedNode ? network.selectedNode.id : null,
         nextNodeId: network.nextNodeId
@@ -1357,7 +1359,8 @@
                     id: neighborId,
                     weight: data.weight,
                     isBidirectional: network.nodes.get(neighborId)?.neighbors.has(node.id) || false
-                }))
+                })),
+                isActive: node.isActive 
             })),
             nextNodeId: network.nextNodeId,
             version: "1.0"
@@ -1394,27 +1397,36 @@
                 }
                 
                 
-                network.nodes.clear();
-                network.selectedNode = null;
-                network.helloPackets = [];
-                network.lsaPackets = [];
-                network.nextNodeId = networkState.nextNodeId || 1;
+                let maxNodeId = 0;
+                for (const nodeData of networkState.nodes) {
+                    
+                    const numericId = Number(nodeData.id);
+                    if (!isNaN(numericId) && numericId > maxNodeId) maxNodeId = numericId;
+                }
+                if (typeof networkState.nextNodeId === 'number' && networkState.nextNodeId > maxNodeId) {
+                    network.nextNodeId = networkState.nextNodeId;
+                } else {
+                    network.nextNodeId = maxNodeId + 1;
+                }
                 network.resetSimulationState(true);
                 
                 
                 const nodeMap = new Map();
                 for (const nodeData of networkState.nodes) {
-                    if (!nodeData.id || typeof nodeData.x !== 'number' || typeof nodeData.y !== 'number') {
+                    
+                    if (typeof nodeData.id === 'undefined' || typeof nodeData.x !== 'number' || typeof nodeData.y !== 'number') {
                         throw new Error('Invalid node data format');
                     }
-                    const node = network.addNode(nodeData.x, nodeData.y, nodeData.id);
-                    nodeMap.set(nodeData.id, node);
+                    const numericId = Number(nodeData.id);
+                    const node = network.addNode(nodeData.x, nodeData.y, numericId);
+                    node.isActive = (typeof nodeData.isActive !== 'undefined') ? nodeData.isActive : true; 
+                    nodeMap.set(numericId, node);
                 }
                 
                 
                 const processedEdges = new Set(); 
                 for (const nodeData of networkState.nodes) {
-                    const sourceNode = nodeMap.get(nodeData.id);
+                    const sourceNode = nodeMap.get(Number(nodeData.id));
                     if (!sourceNode) continue;
                     
                     
@@ -1424,21 +1436,21 @@
                     if (!nodeData.neighbors || !Array.isArray(nodeData.neighbors)) continue;
                     
                     for (const neighbor of nodeData.neighbors) {
-                        if (!neighbor.id || typeof neighbor.weight !== 'number') continue;
                         
-                        const targetNode = nodeMap.get(neighbor.id);
+                        if (typeof neighbor.id === 'undefined' || typeof neighbor.weight !== 'number') continue;
+                        const targetNode = nodeMap.get(Number(neighbor.id));
                         if (!targetNode) continue;
                         
                         
-                        const edgeId = [Math.min(nodeData.id, neighbor.id), Math.max(nodeData.id, neighbor.id)].join('-');
+                        const edgeId = [Math.min(Number(nodeData.id), Number(neighbor.id)), Math.max(Number(nodeData.id), Number(neighbor.id))].join('-');
                         
                         
                         if (processedEdges.has(edgeId)) continue;
                         
                         
                         network.connectNodes(
-                            nodeData.id,
-                            neighbor.id,
+                            Number(nodeData.id),
+                            Number(neighbor.id),
                             neighbor.weight,
                             neighbor.isBidirectional
                         );
@@ -1680,7 +1692,7 @@
             border-radius: 4px;
             padding: 5px 0;
             min-width: 150px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             z-index: 1000;
         }
 
@@ -1940,8 +1952,8 @@
 
     
     const origAddNode = network.addNode;
-    network.addNode = function(x, y) {
-        const node = origAddNode.call(this, x, y);
+    network.addNode = function(x, y, explicitId = null) {
+        const node = origAddNode.call(this, x, y, explicitId);
         updateNodeSelectors();
         return node;
     };

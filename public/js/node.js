@@ -45,15 +45,20 @@ class Node {
 
     updateRoutingTable() {
         
-        this.routingTable.clear();
-        
-        
-        for (const [neighborId, data] of this.neighbors) {
-            this.routingTable.set(neighborId, {
-                nextHop: neighborId,
-                cost: data.weight,
-                path: [this.id, neighborId]
-            });
+        if (typeof network !== 'undefined' && network.simulationPhase === 'lsa' && network.lsaPhaseComplete) {
+            
+            const table = network.calculateShortestPaths(this.id);
+            this.routingTable = table;
+        } else {
+            
+            this.routingTable.clear();
+            for (const [neighborId, data] of this.neighbors) {
+                this.routingTable.set(neighborId, {
+                    nextHop: neighborId,
+                    cost: data.weight,
+                    path: [this.id, neighborId]
+                });
+            }
         }
     }
 
