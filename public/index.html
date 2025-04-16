@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,14 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
+
 <body>
+    <!-- Added Header -->
+    <header
+        style="text-align: center; padding: 20px; background-color: #1e1e1e; font-size: 24px; font-weight: bold; color: #fff;">
+        Link State Routing Algorithm
+    </header>
+
     <div class="container">
         <div class="toolbar">
             <div class="toolbar-group left-group">
@@ -55,24 +63,25 @@
                 </button>
             </div>
         </div>
-        
+
         <div class="main-content">
             <canvas id="networkCanvas"></canvas>
-            
+
             <div class="node-details">
                 <div class="details-section">
                     <h3><i class="fas fa-info-circle"></i> Node Details</h3>
                     <div id="nodeInfo">No node selected</div>
                 </div>
-                
+
                 <div class="details-section">
                     <h3><i class="fas fa-route"></i> Routing Table</h3>
                     <div id="routingTable">No routing information available</div>
                 </div>
             </div>
-            
+
             <div class="canvas-controls">
-                <button id="resetSimulation" class="tool-button" title="Reset simulation state without clearing the network">
+                <button id="resetSimulation" class="tool-button"
+                    title="Reset simulation state without clearing the network">
                     <i class="fas fa-sync-alt"></i> Reset Simulation
                 </button>
                 <button id="clearNetwork" class="tool-button" title="Clear all nodes and edges (C)">
@@ -94,7 +103,6 @@
         </button>
     </div>
 
-    
     <div id="adjacencyListModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -113,4 +121,5 @@
     <script src="js/visualization.js"></script>
     <script src="js/main.js"></script>
 </body>
+
 </html>

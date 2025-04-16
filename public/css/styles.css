@@ -4,12 +4,27 @@ body {
     font-family: Arial, sans-serif;
     background: #1a1a1a;
     color: #fff;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    flex: 0 0 auto;
 }
 
 .container {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     overflow: hidden;
 }
 
@@ -18,6 +33,7 @@ body {
     display: flex;
     position: relative;
     overflow: hidden;
+    height: 100%;
 }
 
 #networkCanvas {

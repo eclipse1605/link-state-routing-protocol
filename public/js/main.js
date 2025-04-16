@@ -1,9 +1,9 @@
- document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('networkCanvas');
     const network = new Network();
     const visualization = new Visualization(canvas, network);
     const logger = network.logger;
-    
+
     visualization.resetView();
 
     const history = {
@@ -13,7 +13,7 @@
         maxSize: 20
     };
 
-    function saveState(){
+    function saveState() {
         const state = {
             nodes: Array.from(network.nodes.entries()).map(([id, node]) => ({
                 id: node.id,
@@ -23,77 +23,77 @@
                     id: neighborId,
                     weight: data.weight
                 })),
-                isActive: node.isActive 
+                isActive: node.isActive
             })),
             selectedNodeId: network.selectedNode ? network.selectedNode.id : null,
             nextNodeId: network.nextNodeId
         };
 
         console.log('[saveState] Saving state:', state);
-        if (history.current !== null){
+        if (history.current !== null) {
             history.past.push(history.current);
-            if (history.past.length > history.maxSize){
+            if (history.past.length > history.maxSize) {
                 history.past.shift();
             }
         }
         history.current = state;
         history.future = [];
-        
+
         updateHistoryButtons();
         console.log('[saveState] State saved. Past length:', history.past.length, 'Future cleared.');
     }
 
-    function restoreState(state){
+    function restoreState(state) {
         if (!state) return;
         console.log('[restoreState] Restoring state:', state);
-        
+
         network.nodes.clear();
         network.selectedNode = null;
         network.helloPackets = [];
         network.lsaPackets = [];
         network.nextNodeId = state.nextNodeId;
-        
+
         const nodeMap = new Map();
-        for (const nodeData of state.nodes){
+        for (const nodeData of state.nodes) {
             const node = network.addNode(nodeData.x, nodeData.y, nodeData.id);
-            node.isActive = (typeof nodeData.isActive !== 'undefined') ? nodeData.isActive : true; 
+            node.isActive = (typeof nodeData.isActive !== 'undefined') ? nodeData.isActive : true;
             nodeMap.set(nodeData.id, node);
         }
-        
-        for (const nodeData of state.nodes){
+
+        for (const nodeData of state.nodes) {
             const node = nodeMap.get(nodeData.id);
-            if (node){
+            if (node) {
                 node.neighbors.clear();
                 node.lsa_db = {};
             }
         }
-        
-        for (const nodeData of state.nodes){
+
+        for (const nodeData of state.nodes) {
             const node = nodeMap.get(nodeData.id);
-            if (node){
-                for (const neighbor of nodeData.neighbors){
+            if (node) {
+                for (const neighbor of nodeData.neighbors) {
                     const neighborNode = nodeMap.get(neighbor.id);
-                    if (neighborNode){
-                        node.neighbors.set(neighbor.id, { 
+                    if (neighborNode) {
+                        node.neighbors.set(neighbor.id, {
                             weight: neighbor.weight,
                             lastUpdate: Date.now()
                         });
-                        node.lsa_db[neighbor.id] = { 
-                            weight: neighbor.weight, 
-                            timestamp: Date.now() 
+                        node.lsa_db[neighbor.id] = {
+                            weight: neighbor.weight,
+                            timestamp: Date.now()
                         };
                     }
                 }
             }
         }
-        
+
         for (const node of nodeMap.values()) {
             if (node.neighbors && node.neighbors.size > 0) {
                 node.isActive = true;
             }
         }
-        
-        if (state.selectedNodeId !== null){
+
+        if (state.selectedNodeId !== null) {
             network.selectedNode = nodeMap.get(state.selectedNodeId) || null;
             visualization.selectedNode = network.selectedNode;
             visualization.updateNodeDetails(network.selectedNode);
@@ -102,25 +102,25 @@
             visualization.updateNodeDetails(null);
             removeNodeBtn.disabled = true;
         }
-        
+
         updateNodeSelectors();
         updateNetworkStatus();
         visualization.render();
         console.log('[restoreState] State restored.');
     }
 
-    function updateHistoryButtons(){
+    function updateHistoryButtons() {
         const undoButton = document.getElementById('undoButton');
         const redoButton = document.getElementById('redoButton');
-        
+
         undoButton.disabled = history.past.length === 0 || network.isSimulationRunning;
         redoButton.disabled = history.future.length === 0 || network.isSimulationRunning;
-        
+
         updateDisabledButtonTooltip(undoButton, 'No actions to undo');
         updateDisabledButtonTooltip(redoButton, 'No actions to redo');
     }
 
-    function undo(){
+    function undo() {
         if (history.past.length === 0 || network.isSimulationRunning) return;
         console.log('[undo] Undo called. Past length:', history.past.length, 'Future length:', history.future.length);
         history.future.unshift(history.current);
@@ -135,8 +135,8 @@
         }, 300);
     }
 
-    
-    function redo(){
+
+    function redo() {
         if (history.future.length === 0 || network.isSimulationRunning) return;
         console.log('[redo] Redo called. Past length:', history.past.length, 'Future length:', history.future.length);
         history.past.push(history.current);
@@ -151,11 +151,11 @@
         }, 300);
     }
 
-    
+
     saveState();
 
-    
-    function resizeCanvas(){
+
+    function resizeCanvas() {
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
         visualization.render();
@@ -163,10 +163,10 @@
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    
+
     let isAddingNode = false;
 
-    
+
     const startHelloBtn = document.getElementById('startHello');
     const startLSABtn = document.getElementById('startLSA');
     const clearNetworkBtn = document.getElementById('clearNetwork');
@@ -175,26 +175,26 @@
     const edgeTypeSelector = document.getElementById('edgeTypeSelector');
     const undoButton = document.getElementById('undoButton');
     const redoButton = document.getElementById('redoButton');
-    
-    
+
+
     const addNodeBtn = document.getElementById('addNode');
     const addEdgeBtn = document.getElementById('addEdge');
     const removeNodeBtn = document.getElementById('removeNode');
     const pauseSimulationBtn = document.getElementById('pauseSimulation');
     const viewAdjacencyListBtn = document.getElementById('viewAdjacencyList');
 
-    
-    function updateDisabledButtonTooltip(button, reason){
-        if (button.disabled || button.classList.contains('disabled')){
+
+    function updateDisabledButtonTooltip(button, reason) {
+        if (button.disabled || button.classList.contains('disabled')) {
             button.setAttribute('data-tooltip', reason);
         } else {
             button.removeAttribute('data-tooltip');
         }
     }
 
-    
-    function updateAllDisabledTooltips(){
-        if (network.isSimulationRunning){
+
+    function updateAllDisabledTooltips() {
+        if (network.isSimulationRunning) {
             updateDisabledButtonTooltip(addNodeBtn, 'Cannot add nodes during simulation');
             updateDisabledButtonTooltip(addEdgeBtn, 'Cannot add edges during simulation');
             updateDisabledButtonTooltip(clearNetworkBtn, 'Cannot clear during simulation');
@@ -204,40 +204,40 @@
             updateDisabledButtonTooltip(redoButton, 'Cannot redo during simulation');
             updateDisabledButtonTooltip(pauseSimulationBtn, 'Cannot pause during simulation');
         } else {
-            if (addNodeBtn.disabled && !isAddingNode){
+            if (addNodeBtn.disabled && !isAddingNode) {
                 updateDisabledButtonTooltip(addNodeBtn, 'Currently adding edge');
             }
-            
-            if (addEdgeBtn.disabled && !visualization.edgeCreationState.isActive){
+
+            if (addEdgeBtn.disabled && !visualization.edgeCreationState.isActive) {
                 updateDisabledButtonTooltip(addEdgeBtn, 'Currently adding node');
             }
-            
-            if (removeNodeBtn.disabled){
+
+            if (removeNodeBtn.disabled) {
                 updateDisabledButtonTooltip(removeNodeBtn, 'No node selected');
             }
-            
-            if (startLSABtn.disabled && !network.isSimulationRunning){
+
+            if (startLSABtn.disabled && !network.isSimulationRunning) {
                 updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
             }
-            
-            if (pauseSimulationBtn.disabled){
+
+            if (pauseSimulationBtn.disabled) {
                 updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
             }
-            
+
             updateDisabledButtonTooltip(undoButton, 'No actions to undo');
             updateDisabledButtonTooltip(redoButton, 'No actions to redo');
         }
     }
 
-    
-    function updateRoutingTableDisplay(node){
+
+    function updateRoutingTableDisplay(node) {
         const routingTableDiv = document.getElementById('routingTable');
-        if (!node){
+        if (!node) {
             routingTableDiv.innerHTML = 'No routing information available';
             return;
         }
 
-        
+
         if (network.isSimulationRunning) {
             if (network.simulationPhase === 'hello') {
                 routingTableDiv.innerHTML = '<div class="route-status">Live Routing Table (Hello Phase in Progress)</div><div class="no-route">Routing table will be available after LSA flooding completes.</div>';
@@ -250,7 +250,7 @@
         }
 
         let html = '';
-        if (node.routingTable.size === 0){
+        if (node.routingTable.size === 0) {
             html = '<div class="no-route">No routes available</div>';
         } else {
             html += `
@@ -310,7 +310,7 @@
                 `;
             }
 
-            for (const [destId, route] of node.routingTable){
+            for (const [destId, route] of node.routingTable) {
                 const destNode = network.nodes.get(destId);
                 if (!destNode) continue;
 
@@ -318,8 +318,8 @@
                 const nextHopNode = nextHopId ? network.nodes.get(nextHopId) : null;
                 const costDisplay = route.cost === Infinity ? '∞' : route.cost;
 
-                const gatewayIP = nextHopId ? 
-                    (node.neighbors.has(nextHopId) ? `10.0.${nextHopId}.1` : `10.0.${route.path[1]}.1`) : 
+                const gatewayIP = nextHopId ?
+                    (node.neighbors.has(nextHopId) ? `10.0.${nextHopId}.1` : `10.0.${route.path[1]}.1`) :
                     '-';
 
                 html += `
@@ -350,8 +350,8 @@
 
             html += `<div class="path-info-header">Path Information</div>`;
 
-            for (const [destId, route] of node.routingTable){
-                const costDisplay = route.cost === Infinity ? 
+            for (const [destId, route] of node.routingTable) {
+                const costDisplay = route.cost === Infinity ?
                     '<span class="infinity-symbol">∞</span>' : route.cost;
 
                 html += `
@@ -372,16 +372,16 @@
         routingTableDiv.innerHTML = html;
     }
 
-    
-    visualization.updateNodeDetails = function(node){
+
+    visualization.updateNodeDetails = function (node) {
         const nodeInfo = document.getElementById('nodeInfo');
-        if (!node){
+        if (!node) {
             nodeInfo.innerHTML = 'No node selected';
             document.getElementById('routingTable').innerHTML = 'No routing information available';
             return;
         }
 
-        
+
         nodeInfo.innerHTML = `
             <div class="node-header">
                 <div class="status-indicator ${node.isActive ? 'status-active' : ''}"></div>
@@ -425,11 +425,11 @@
             </div>
         `;
 
-        
+
         updateRoutingTableDisplay(node);
     };
 
-    
+
     const weightDialog = document.createElement('div');
     weightDialog.className = 'weight-dialog';
     weightDialog.style.display = 'none';
@@ -440,32 +440,32 @@
     `;
     document.body.appendChild(weightDialog);
 
-    
+
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.style.display = 'none';
     document.body.appendChild(overlay);
 
-    
+
     overlay.addEventListener('click', () => {
         weightDialog.style.display = 'none';
         overlay.style.display = 'none';
-        
+
         visualization.edgeCreationState = {
             isActive: false,
             sourceNode: null,
             previewPos: null
         };
-        
+
         addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
         addNodeBtn.disabled = false;
-        canvas.style.cursor = 'grab'; 
+        canvas.style.cursor = 'grab';
         visualization.render();
     });
 
-    
+
     const updateButtonStates = (isSimulationRunning) => {
-        
+
         addNodeBtn.disabled = isSimulationRunning;
         addEdgeBtn.disabled = isSimulationRunning;
         clearNetworkBtn.disabled = isSimulationRunning;
@@ -474,98 +474,98 @@
         undoButton.disabled = isSimulationRunning || history.past.length === 0;
         redoButton.disabled = isSimulationRunning || history.future.length === 0;
         pauseSimulationBtn.disabled = !isSimulationRunning;
-        
-        
+
+
         [addNodeBtn, addEdgeBtn, clearNetworkBtn, resetViewBtn].forEach(btn => {
-            if (isSimulationRunning){
+            if (isSimulationRunning) {
                 btn.classList.add('disabled');
             } else {
                 btn.classList.remove('disabled');
             }
         });
-        
-        
+
+
         updateAllDisabledTooltips();
     };
 
-    
+
     const resetButtonStates = () => {
-        
+
         addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
         addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
-        
-        
+
+
         addNodeBtn.classList.remove('active', 'disabled');
         addEdgeBtn.classList.remove('active', 'disabled');
         addNodeBtn.disabled = false;
         addEdgeBtn.disabled = false;
-        
-        
-        canvas.style.cursor = 'grab'; 
+
+
+        canvas.style.cursor = 'grab';
     };
 
-    
+
     const showWeightDialog = (callback, currentWeight = 1) => {
         weightDialog.style.display = 'block';
         overlay.style.display = 'block';
         const weightInput = document.getElementById('weightInput');
         weightInput.value = currentWeight;
         weightInput.focus();
-        weightInput.select(); 
-        
-        
+        weightInput.select();
+
+
         const confirmWeight = () => {
             const weight = parseInt(weightInput.value);
-            if (!isNaN(weight) && weight > 0){
+            if (!isNaN(weight) && weight > 0) {
                 callback(weight);
                 hideWeightDialog();
             } else {
                 alert('Please enter a valid positive number for the weight.');
             }
         };
-        
-        
+
+
         const handleKeyPress = (e) => {
             if (e.key === 'Enter') {
                 confirmWeight();
                 e.preventDefault();
             }
         };
-        
-        
+
+
         weightInput.addEventListener('keypress', handleKeyPress);
-        
+
         const confirmBtn = document.getElementById('confirmWeight');
         confirmBtn.onclick = confirmWeight;
-        
-        
+
+
         overlay.addEventListener('click', function onOverlayClick() {
             weightInput.removeEventListener('keypress', handleKeyPress);
             overlay.removeEventListener('click', onOverlayClick);
         }, { once: true });
     };
 
-    
+
     const hideWeightDialog = () => {
         weightDialog.style.display = 'none';
         overlay.style.display = 'none';
     };
 
-    
+
     addNodeBtn.addEventListener('click', () => {
         if (network.isSimulationRunning) return;
-        
+
         isAddingNode = !isAddingNode;
-        visualization.isAddingNode = isAddingNode;  
-        
-        if (isAddingNode){
-            
+        visualization.isAddingNode = isAddingNode;
+
+        if (isAddingNode) {
+
             addNodeBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Node';
             addNodeBtn.classList.add('active');
             canvas.classList.add('node-adding');
-            canvas.style.cursor = 'crosshair'; 
-            
-            
+            canvas.style.cursor = 'crosshair';
+
+
             visualization.edgeCreationState.isActive = false;
             addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
             addEdgeBtn.classList.remove('active');
@@ -573,54 +573,54 @@
             updateDisabledButtonTooltip(addEdgeBtn, 'Currently adding node');
             canvas.classList.remove('edge-adding');
         } else {
-            
+
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addNodeBtn.classList.remove('active');
             canvas.classList.remove('node-adding');
-            canvas.style.cursor = 'grab'; 
+            canvas.style.cursor = 'grab';
             addEdgeBtn.disabled = false;
             addEdgeBtn.removeAttribute('data-tooltip');
         }
     });
 
-    
+
     addEdgeBtn.addEventListener('click', () => {
         if (network.isSimulationRunning) return;
-        
+
         visualization.edgeCreationState.isActive = !visualization.edgeCreationState.isActive;
-        
-        if (visualization.edgeCreationState.isActive){
-            
+
+        if (visualization.edgeCreationState.isActive) {
+
             addEdgeBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Edge';
             addEdgeBtn.classList.add('active');
             canvas.classList.add('edge-adding');
-            canvas.style.cursor = 'default'; 
-            
-            
+            canvas.style.cursor = 'default';
+
+
             isAddingNode = false;
-            visualization.isAddingNode = false;  
+            visualization.isAddingNode = false;
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addNodeBtn.classList.remove('active');
             addNodeBtn.disabled = true;
             updateDisabledButtonTooltip(addNodeBtn, 'Currently adding edge');
             canvas.classList.remove('node-adding');
-            
-            
+
+
             visualization.edgeCreationState = {
                 isActive: true,
                 sourceNode: null,
                 previewPos: null
             };
         } else {
-            
+
             addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
             addEdgeBtn.classList.remove('active');
             canvas.classList.remove('edge-adding');
-            canvas.style.cursor = 'grab'; 
+            canvas.style.cursor = 'grab';
             addNodeBtn.disabled = false;
             addNodeBtn.removeAttribute('data-tooltip');
-            
-            
+
+
             visualization.edgeCreationState = {
                 isActive: false,
                 sourceNode: null,
@@ -630,64 +630,64 @@
         visualization.render();
     });
 
-    
-    function createEdgeWithWeight(sourceNode, targetNode){
-        
+
+    function createEdgeWithWeight(sourceNode, targetNode) {
+
         showWeightDialog((weight) => {
             const isBidirectional = edgeTypeSelector.value === 'double';
-            if (network.connectNodes(sourceNode.id, targetNode.id, weight, isBidirectional)){
+            if (network.connectNodes(sourceNode.id, targetNode.id, weight, isBidirectional)) {
                 visualization.updateNodeDetails(network.selectedNode);
                 visualization.render();
             }
         });
     }
 
-    
+
     startHelloBtn.addEventListener('click', () => {
         if (network.isSimulationRunning && network.simulationPhase === 'hello') {
-            
+
             return;
         }
-        
+
         if (network.isSimulationRunning) {
-            
+
             network.stopSimulation();
             startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
             startHelloBtn.classList.remove('active');
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
-            
-            
+
+
             updateButtonStates(false);
-            
-            
+
+
             isAddingNode = false;
-            visualization.isAddingNode = false;  
+            visualization.isAddingNode = false;
             visualization.edgeCreationState.isActive = false;
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
             addNodeBtn.classList.remove('active');
             addEdgeBtn.classList.remove('active');
             canvas.classList.remove('node-adding', 'edge-adding');
-            canvas.style.cursor = 'grab';  
-            
+            canvas.style.cursor = 'grab';
+
             startHelloBtn.setAttribute('data-tooltip', 'Start Hello Phase (Space)');
         } else {
-            
+
             network.startHelloPhase();
             startHelloBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Hello Phase';
             startHelloBtn.classList.add('active');
-            startHelloBtn.disabled = true; 
+            startHelloBtn.disabled = true;
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Hello Phase is running');
             updateDisabledButtonTooltip(startHelloBtn, 'Hello Phase is running');
-            
-            
+
+
             updateButtonStates(true);
-            
-            
+
+
             isAddingNode = false;
-            visualization.isAddingNode = false;  
+            visualization.isAddingNode = false;
             visualization.edgeCreationState.isActive = false;
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
@@ -698,77 +698,77 @@
         }
     });
 
-    
+
     startLSABtn.addEventListener('click', () => {
         if (network.isSimulationRunning && network.simulationPhase === 'lsa') {
-            
+
             return;
         }
-        
-        if (network.isSimulationRunning){
-            
+
+        if (network.isSimulationRunning) {
+
             network.stopSimulation();
             startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
             startLSABtn.classList.remove('active');
-            
-            
+
+
             addNodeBtn.disabled = false;
             addEdgeBtn.disabled = false;
             clearNetworkBtn.disabled = false;
             resetViewBtn.disabled = false;
             removeNodeBtn.disabled = !network.selectedNode;
             startHelloBtn.disabled = false;
-            
-            
+
+
             isAddingNode = false;
-            visualization.isAddingNode = false;  
+            visualization.isAddingNode = false;
             visualization.edgeCreationState.isActive = false;
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
             addNodeBtn.classList.remove('active');
             addEdgeBtn.classList.remove('active');
             canvas.classList.remove('node-adding', 'edge-adding');
-            canvas.style.cursor = 'grab';  
-            
-            
+            canvas.style.cursor = 'grab';
+
+
             updateAllDisabledTooltips();
         } else {
-            
+
             network.startLSAPhase();
             startLSABtn.innerHTML = '<i class="fas fa-stop"></i> Stop Flooding';
             startLSABtn.classList.add('active');
-            startLSABtn.disabled = true; 
+            startLSABtn.disabled = true;
             startHelloBtn.disabled = true;
             updateDisabledButtonTooltip(startHelloBtn, 'LSA Flooding is running');
             updateDisabledButtonTooltip(startLSABtn, 'LSA Flooding is running');
-            
-            
+
+
             addNodeBtn.disabled = true;
             addEdgeBtn.disabled = true;
             clearNetworkBtn.disabled = true;
             resetViewBtn.disabled = true;
             removeNodeBtn.disabled = true;
-            
-            
+
+
             isAddingNode = false;
-            visualization.isAddingNode = false;  
+            visualization.isAddingNode = false;
             visualization.edgeCreationState.isActive = false;
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
             addNodeBtn.classList.remove('active');
             addEdgeBtn.classList.remove('active');
             canvas.classList.remove('node-adding', 'edge-adding');
-            canvas.style.cursor = 'default'; 
-            
-            
+            canvas.style.cursor = 'default';
+
+
             updateAllDisabledTooltips();
         }
     });
 
-    
+
     clearNetworkBtn.addEventListener('click', () => {
-        if (!network.isSimulationRunning && confirm('Are you sure you want to clear the network?')){
-            
+        if (!network.isSimulationRunning && confirm('Are you sure you want to clear the network?')) {
+
             network.nodes.clear();
             network.selectedNode = null;
             network.helloPackets = [];
@@ -779,38 +779,38 @@
             network.simulationPhase = null;
             network.helloPhaseComplete = false;
             network.lsaPhaseComplete = false;
-            
-            
+
+
             startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
             startHelloBtn.classList.remove('active');
             startHelloBtn.disabled = false;
             startHelloBtn.removeAttribute('data-tooltip');
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
-            
+
             pauseSimulationBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
             pauseSimulationBtn.classList.remove('active');
             pauseSimulationBtn.disabled = true;
             updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
-            
-            
+
+
             isAddingNode = false;
-            visualization.isAddingNode = false;  
+            visualization.isAddingNode = false;
             visualization.edgeCreationState.isActive = false;
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addEdgeBtn.innerHTML = '<i class="fas fa-link"></i> Add Edge';
             addNodeBtn.classList.remove('active');
             addEdgeBtn.classList.remove('active');
             canvas.classList.remove('node-adding', 'edge-adding');
-            canvas.style.cursor = 'grab';  
-            
-            
+            canvas.style.cursor = 'grab';
+
+
             addNodeBtn.disabled = false;
             addEdgeBtn.disabled = false;
             removeNodeBtn.disabled = true;
             updateDisabledButtonTooltip(removeNodeBtn, 'No node selected');
-            
-            
+
+
             const pathFinderInfo = document.querySelector('.path-finder-info');
             if (pathFinderInfo) {
                 pathFinderInfo.textContent = 'Complete LSA flooding to enable path finding';
@@ -820,41 +820,41 @@
             document.getElementById('destNodeSelect').disabled = true;
             document.getElementById('findPathBtn').disabled = true;
             document.getElementById('clearPathBtn').disabled = true;
-            
-            
+
+
             visualization.clearPath();
-            
-            
+
+
             document.getElementById('nodeInfo').innerHTML = 'No node selected';
             document.getElementById('routingTable').innerHTML = 'No routing information available';
-            
-            
+
+
             visualization.updateNodeDetails(null);
             visualization.render();
-            
-            
+
+
             visualization.resetView();
-            
-            
+
+
             updateHistoryButtons();
-            
-            
+
+
             saveState();
-            
+
             network.logger.log('NETWORK', 'Network cleared and all simulation states reset');
         }
     });
 
-    
+
     resetViewBtn.addEventListener('click', () => {
-            visualization.resetView();
+        visualization.resetView();
     });
 
-    
+
     removeNodeBtn.addEventListener('click', () => {
         if (network.isSimulationRunning || !network.selectedNode) return;
-        
-        if (confirm(`Are you sure you want to remove Router ${network.selectedNode.id} and all its connections?`)){
+
+        if (confirm(`Are you sure you want to remove Router ${network.selectedNode.id} and all its connections?`)) {
             network.removeNode(network.selectedNode.id);
             network.selectedNode = null;
             visualization.updateNodeDetails(null);
@@ -864,234 +864,234 @@
         }
     });
 
-    
+
     canvas.addEventListener('click', (event) => {
         if (!isAddingNode) return;
-        
+
         const rect = canvas.getBoundingClientRect();
         const x = (event.clientX - rect.left - visualization.offset.x) / visualization.scale;
         const y = (event.clientY - rect.top - visualization.offset.y) / visualization.scale;
-        
-        
-        const minDistance = 50; 
+
+
+        const minDistance = 50;
         let tooClose = false;
-        
-        for (const node of network.nodes.values()){
+
+        for (const node of network.nodes.values()) {
             const dx = x - node.x;
             const dy = y - node.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < minDistance){
+            if (distance < minDistance) {
                 tooClose = true;
                 break;
             }
         }
-        
-        if (!tooClose){
+
+        if (!tooClose) {
             const node = network.addNode(x, y);
             network.selectedNode = node;
             visualization.selectedNode = node;
             visualization.updateNodeDetails(node);
             removeNodeBtn.disabled = false;
             removeNodeBtn.removeAttribute('data-tooltip');
-            
-            
+
+
             isAddingNode = false;
-            visualization.isAddingNode = false;  
+            visualization.isAddingNode = false;
             addNodeBtn.innerHTML = '<i class="fas fa-plus"></i> Add Node';
             addNodeBtn.classList.remove('active');
             canvas.classList.remove('node-adding');
-            canvas.style.cursor = 'grab';  
+            canvas.style.cursor = 'grab';
             addEdgeBtn.disabled = false;
-            
+
             visualization.render();
-            
-            
+
+
             saveState();
         }
     });
 
-    
+
     const originalConnectNodes = network.connectNodes;
-    network.connectNodes = function(sourceId, targetId, weight, isBidirectional){
+    network.connectNodes = function (sourceId, targetId, weight, isBidirectional) {
         const result = originalConnectNodes.call(this, sourceId, targetId, weight, isBidirectional);
-        if (result){
+        if (result) {
             saveState();
         }
         return result;
     };
 
-    
-    window.removeEdge = function(sourceId, targetId){
+
+    window.removeEdge = function (sourceId, targetId) {
         if (network.isSimulationRunning) return;
-        
-        if (confirm(`Are you sure you want to remove the connection between Router ${sourceId} and Router ${targetId}?`)){
+
+        if (confirm(`Are you sure you want to remove the connection between Router ${sourceId} and Router ${targetId}?`)) {
             const sourceNode = network.nodes.get(sourceId);
-            if (sourceNode && sourceNode.neighbors.has(targetId)){
-                
+            if (sourceNode && sourceNode.neighbors.has(targetId)) {
+
                 const targetNode = network.nodes.get(targetId);
                 const isBidirectional = targetNode && targetNode.neighbors.has(sourceId);
-                
-                
+
+
                 network.disconnectNodes(sourceId, targetId);
-                
-                
+
+
                 visualization.updateNodeDetails(network.selectedNode);
                 visualization.render();
-                
-                
+
+
                 saveState();
             }
         }
     };
 
-    
-    window.updateEdgeWeight = function(sourceId, targetId){
+
+    window.updateEdgeWeight = function (sourceId, targetId) {
         if (network.isSimulationRunning) return;
-        
+
         const sourceNode = network.nodes.get(sourceId);
         const targetNode = network.nodes.get(targetId);
-        
-        if (sourceNode && targetNode){
+
+        if (sourceNode && targetNode) {
             const neighborData = sourceNode.neighbors.get(targetId);
-            if (neighborData){
-                
+            if (neighborData) {
+
                 const isBidirectional = targetNode.neighbors.has(sourceId);
-                
+
                 showWeightDialog((weight) => {
-                    
+
                     network.updateEdgeWeight(sourceId, targetId, weight);
-                    
-                    
+
+
                     visualization.updateNodeDetails(network.selectedNode);
                     visualization.render();
-                    
-                    
+
+
                     saveState();
                 }, neighborData.weight);
             }
         }
     };
 
-    
+
     const originalRemoveNode = network.removeNode;
-    network.removeNode = function(nodeId){
+    network.removeNode = function (nodeId) {
         originalRemoveNode.call(this, nodeId);
         saveState();
     };
 
-    
-    function setupDemoNetwork(){
+
+    function setupDemoNetwork() {
         const node1 = network.addNode(100, 100);
         const node2 = network.addNode(300, 100);
         const node3 = network.addNode(100, 300);
         const node4 = network.addNode(300, 300);
-        
-        
+
+
         network.connectNodes(node1.id, node2.id, 5);
         network.connectNodes(node2.id, node4.id, 3);
         network.connectNodes(node1.id, node3.id, 7);
         network.connectNodes(node3.id, node4.id, 4);
-        
+
         visualization.render();
     }
 
-    
+
     document.addEventListener('keydown', (event) => {
-        
+
         if (event.target.tagName === 'INPUT') return;
-        
-        
+
+
         if (network.isSimulationRunning) return;
 
-        
-        if (event.ctrlKey && event.key.toLowerCase() === 'z'){
+
+        if (event.ctrlKey && event.key.toLowerCase() === 'z') {
             event.preventDefault();
-            if (!undoButton.disabled){
+            if (!undoButton.disabled) {
                 undo();
                 network.logger.log('NETWORK', 'Undo action performed');
             }
             return;
         }
-        
-        
-        if (event.ctrlKey && event.key.toLowerCase() === 'y'){
+
+
+        if (event.ctrlKey && event.key.toLowerCase() === 'y') {
             event.preventDefault();
-            if (!redoButton.disabled){
+            if (!redoButton.disabled) {
                 redo();
                 network.logger.log('NETWORK', 'Redo action performed');
             }
             return;
         }
 
-        
+
         if (event.ctrlKey) return;
 
-        switch (event.key.toLowerCase()){
+        switch (event.key.toLowerCase()) {
             case 'n':
-                if (!network.isSimulationRunning){
+                if (!network.isSimulationRunning) {
                     addNodeBtn.click();
                 }
                 break;
             case 'e':
-                if (!network.isSimulationRunning){
+                if (!network.isSimulationRunning) {
                     addEdgeBtn.click();
                 }
                 break;
-    case ' ': 
-        if (network.isSimulationRunning) {
-            pauseSimulationBtn.click();
-        } else {
-            
-            resetSimulationState();
-        }
-        if (network.isSimulationRunning) {
-            pauseSimulationBtn.click();
-        }
-        break;
-    case 'c':
-        if (!network.isSimulationRunning){
-            clearNetworkBtn.click();
-        }
-        break;
-    case 'v':
-        resetViewBtn.click();
-        break;
-    case 'delete':
-        if (!network.isSimulationRunning && network.selectedNode){
-            removeNodeBtn.click();
-        }
-    case 'escape':
-        if (isAddingNode){
-            addNodeBtn.click();
-        }
-        if (visualization.edgeCreationState.isActive){
-            addEdgeBtn.click();
-        }
-        break;
-    }
-});
+            case ' ':
+                if (network.isSimulationRunning) {
+                    pauseSimulationBtn.click();
+                } else {
 
-    
+                    resetSimulationState();
+                }
+                if (network.isSimulationRunning) {
+                    pauseSimulationBtn.click();
+                }
+                break;
+            case 'c':
+                if (!network.isSimulationRunning) {
+                    clearNetworkBtn.click();
+                }
+                break;
+            case 'v':
+                resetViewBtn.click();
+                break;
+            case 'delete':
+                if (!network.isSimulationRunning && network.selectedNode) {
+                    removeNodeBtn.click();
+                }
+            case 'escape':
+                if (isAddingNode) {
+                    addNodeBtn.click();
+                }
+                if (visualization.edgeCreationState.isActive) {
+                    addEdgeBtn.click();
+                }
+                break;
+        }
+    });
+
+
     undoButton.addEventListener('click', () => {
-        if (!undoButton.disabled){
+        if (!undoButton.disabled) {
             undo();
             network.logger.log('NETWORK', 'Undo action performed');
         }
     });
-    
-    
+
+
     redoButton.addEventListener('click', () => {
-        if (!redoButton.disabled){
+        if (!redoButton.disabled) {
             redo();
             network.logger.log('NETWORK', 'Redo action performed');
         }
     });
 
-    
+
     setupDemoNetwork();
-    
-    
-    
+
+
+
     history.current = {
         nodes: Array.from(network.nodes.entries()).map(([id, node]) => ({
             id: node.id,
@@ -1101,32 +1101,32 @@
                 id: neighborId,
                 weight: data.weight
             })),
-            isActive: node.isActive 
+            isActive: node.isActive
         })),
         selectedNodeId: network.selectedNode ? network.selectedNode.id : null,
         nextNodeId: network.nextNodeId
     };
-    history.past = []; 
-    history.future = []; 
+    history.past = [];
+    history.future = [];
     updateHistoryButtons();
 
-    
+
     function animate() {
         if (network.isSimulationRunning) {
             network.simulationStep();
-            
-            
+
+
             if (network.selectedNode) {
                 visualization.updateNodeDetails(network.selectedNode);
             }
-            
-            
+
+
             if (network.selectedNodeNeedsUpdate) {
                 visualization.updateNodeDetails(network.selectedNode);
                 network.selectedNodeNeedsUpdate = false;
             }
-            
-            
+
+
             if (network.simulationPhase === 'hello' && network.helloPhaseComplete) {
                 startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
                 startHelloBtn.classList.remove('active');
@@ -1135,22 +1135,22 @@
                 startLSABtn.disabled = false;
                 startLSABtn.removeAttribute('data-tooltip');
                 network.isSimulationRunning = false;
-                
-                
+
+
                 network.updateRoutingTables();
-                
-                
+
+
                 if (network.selectedNode) {
                     visualization.updateNodeDetails(network.selectedNode);
                 }
-                
-                canvas.style.cursor = 'grab'; 
+
+                canvas.style.cursor = 'grab';
                 network.logger.log('NETWORK', 'Hello phase complete, routing tables generated');
-                
+
                 updateButtonStates(false);
             }
-            
-            
+
+
             if (network.simulationPhase === 'lsa' && network.lsaPhaseComplete) {
                 startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
                 startLSABtn.classList.remove('active');
@@ -1160,22 +1160,22 @@
                 startHelloBtn.removeAttribute('data-tooltip');
                 network.isSimulationRunning = false;
                 canvas.style.cursor = 'grab';
-                
-                
+
+
                 const pathFinderInfo = document.querySelector('.path-finder-info');
                 if (pathFinderInfo) {
                     pathFinderInfo.textContent = 'Find shortest path between routers';
                     pathFinderInfo.style.color = '#4CAF50';
                 }
-                
+
                 document.getElementById('sourceNodeSelect').disabled = false;
                 document.getElementById('destNodeSelect').disabled = false;
                 document.getElementById('findPathBtn').disabled = false;
                 document.getElementById('clearPathBtn').disabled = false;
-                
+
                 network.isSimulationComplete = true;
                 network.logger.log('NETWORK', 'LSA flooding complete, path finding now available');
-                
+
                 updateButtonStates(false);
             }
         }
@@ -1184,7 +1184,7 @@
     }
     animate();
 
-    
+
     pauseSimulationBtn.addEventListener('click', () => {
         if (network.isSimulationRunning) {
             const isPaused = network.pauseSimulation();
@@ -1198,7 +1198,7 @@
         }
     });
 
-    
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'p' || e.key === 'P') {
             if (!pauseSimulationBtn.disabled) {
@@ -1207,11 +1207,11 @@
         }
     });
 
-    
+
     const adjacencyListModal = document.getElementById('adjacencyListModal');
     const adjacencyListContent = document.getElementById('adjacencyListContent');
     const closeModalBtn = document.querySelector('.close-modal');
-    
+
     if (viewAdjacencyListBtn && adjacencyListModal && adjacencyListContent && closeModalBtn) {
         viewAdjacencyListBtn.addEventListener('click', () => {
             displayAdjacencyList();
@@ -1229,14 +1229,14 @@
         });
     }
 
-    
+
     function displayAdjacencyList() {
         if (network.nodes.size === 0) {
             adjacencyListContent.innerHTML = '<div class="adjacency-list-empty">No nodes in the network</div>';
             return;
         }
 
-        
+
         let html = `
             <table class="adjacency-list-table">
                 <thead>
@@ -1250,26 +1250,26 @@
                 <tbody>
         `;
 
-        
+
         const displayedEdges = new Set();
 
-        
+
         for (const [sourceId, sourceNode] of network.nodes) {
             for (const [targetId, data] of sourceNode.neighbors) {
                 const targetNode = network.nodes.get(targetId);
                 if (!targetNode) continue;
 
-                
+
                 const isBidirectional = targetNode.neighbors.has(sourceId);
-                
-                
+
+
                 if (isBidirectional) {
-                    
-                    const edgeKey = sourceId < targetId 
-                        ? `${sourceId}-${targetId}` 
+
+                    const edgeKey = sourceId < targetId
+                        ? `${sourceId}-${targetId}`
                         : `${targetId}-${sourceId}`;
-                    
-                    
+
+
                     if (displayedEdges.has(edgeKey)) continue;
                     displayedEdges.add(edgeKey);
                 }
@@ -1280,9 +1280,9 @@
                         <td>Router ${targetId}</td>
                         <td>${data.weight}</td>
                         <td>
-                            ${isBidirectional 
-                                ? '<span class="direction-indicator bidirectional">Bidirectional</span>' 
-                                : '<span class="direction-indicator unidirectional">Unidirectional</span>'}
+                            ${isBidirectional
+                        ? '<span class="direction-indicator bidirectional">Bidirectional</span>'
+                        : '<span class="direction-indicator unidirectional">Unidirectional</span>'}
                         </td>
                     </tr>
                 `;
@@ -1300,48 +1300,48 @@
     function updateNetworkStatus() {
         document.getElementById('nodeCount').textContent = network.nodes.size;
         document.getElementById('edgeCount').textContent = network.edges.size;
-        
-        
+
+
         checkNetworkConnectivity();
     }
 
-    
+
     function checkNetworkConnectivity() {
         if (network.nodes.size === 0) return;
-        
-        
+
+
         const visited = new Map();
         for (const nodeId of network.nodes.keys()) {
             visited.set(nodeId, false);
         }
-        
-        
+
+
         const startNodeId = network.nodes.keys().next().value;
         dfs(startNodeId, visited);
-        
-        
+
+
         for (const [nodeId, isVisited] of visited) {
             const node = network.nodes.get(nodeId);
             const wasIsolated = node.isIsolated;
             node.isIsolated = !isVisited;
-            
-            
+
+
             if (!wasIsolated && node.isIsolated) {
                 console.log(`Node ${nodeId} is now isolated, clearing routing table`);
                 node.routingTable.clear();
                 updateRoutingTableDisplay(node);
             }
-            
-            
+
+
             visualization.updateNodeStyle(nodeId);
         }
     }
 
-    
+
     function dfs(nodeId, visited) {
         visited.set(nodeId, true);
         const node = network.nodes.get(nodeId);
-        
+
         for (const neighborId of node.neighbors.keys()) {
             if (!visited.get(neighborId)) {
                 dfs(neighborId, visited);
@@ -1360,7 +1360,7 @@
                     weight: data.weight,
                     isBidirectional: network.nodes.get(neighborId)?.neighbors.has(node.id) || false
                 })),
-                isActive: node.isActive 
+                isActive: node.isActive
             })),
             nextNodeId: network.nextNodeId,
             version: "1.0"
@@ -1369,7 +1369,7 @@
         const jsonString = JSON.stringify(networkState, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
+
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const a = document.createElement('a');
         a.href = url;
@@ -1378,7 +1378,7 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         network.logger.log('NETWORK', 'Network exported successfully');
     }
 
@@ -1387,19 +1387,19 @@
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = function (e) {
             try {
                 const networkState = JSON.parse(e.target.result);
-                
-                
+
+
                 if (!networkState.nodes || !Array.isArray(networkState.nodes)) {
                     throw new Error('Invalid network state format');
                 }
-                
-                
+
+
                 let maxNodeId = 0;
                 for (const nodeData of networkState.nodes) {
-                    
+
                     const numericId = Number(nodeData.id);
                     if (!isNaN(numericId) && numericId > maxNodeId) maxNodeId = numericId;
                 }
@@ -1409,61 +1409,61 @@
                     network.nextNodeId = maxNodeId + 1;
                 }
                 network.resetSimulationState(true);
-                
-                
+
+
                 const nodeMap = new Map();
                 for (const nodeData of networkState.nodes) {
-                    
+
                     if (typeof nodeData.id === 'undefined' || typeof nodeData.x !== 'number' || typeof nodeData.y !== 'number') {
                         throw new Error('Invalid node data format');
                     }
                     const numericId = Number(nodeData.id);
                     const node = network.addNode(nodeData.x, nodeData.y, numericId);
-                    node.isActive = (typeof nodeData.isActive !== 'undefined') ? nodeData.isActive : true; 
+                    node.isActive = (typeof nodeData.isActive !== 'undefined') ? nodeData.isActive : true;
                     nodeMap.set(numericId, node);
                 }
-                
-                
-                const processedEdges = new Set(); 
+
+
+                const processedEdges = new Set();
                 for (const nodeData of networkState.nodes) {
                     const sourceNode = nodeMap.get(Number(nodeData.id));
                     if (!sourceNode) continue;
-                    
-                    
+
+
                     sourceNode.neighbors.clear();
                     sourceNode.lsa_db = {};
-                    
+
                     if (!nodeData.neighbors || !Array.isArray(nodeData.neighbors)) continue;
-                    
+
                     for (const neighbor of nodeData.neighbors) {
-                        
+
                         if (typeof neighbor.id === 'undefined' || typeof neighbor.weight !== 'number') continue;
                         const targetNode = nodeMap.get(Number(neighbor.id));
                         if (!targetNode) continue;
-                        
-                        
+
+
                         const edgeId = [Math.min(Number(nodeData.id), Number(neighbor.id)), Math.max(Number(nodeData.id), Number(neighbor.id))].join('-');
-                        
-                        
+
+
                         if (processedEdges.has(edgeId)) continue;
-                        
-                        
+
+
                         network.connectNodes(
                             Number(nodeData.id),
                             Number(neighbor.id),
                             neighbor.weight,
                             neighbor.isBidirectional
                         );
-                        
+
                         processedEdges.add(edgeId);
                     }
                 }
-                
-                
+
+
                 visualization.resetView();
                 visualization.render();
                 saveState();
-                
+
                 network.logger.log('NETWORK', 'Network imported successfully');
             } catch (error) {
                 network.logger.log('ERROR', 'Failed to import network: ' + error.message);
@@ -1474,27 +1474,27 @@
     }
 
     document.getElementById('exportNetwork').addEventListener('click', exportNetwork);
-    
+
     const importInput = document.createElement('input');
     importInput.type = 'file';
     importInput.accept = '.json';
     importInput.style.display = 'none';
     document.body.appendChild(importInput);
-    
+
     document.getElementById('importNetwork').addEventListener('click', () => {
         importInput.click();
     });
-    
+
     importInput.addEventListener('change', importNetwork);
 
-    
+
     const helpBtn = document.createElement('button');
     helpBtn.innerHTML = '<i class="fas fa-question-circle"></i> Help';
     helpBtn.id = 'helpButton';
     helpBtn.className = 'help-button';
     document.body.appendChild(helpBtn);
 
-    
+
     const helpModal = document.createElement('div');
     helpModal.className = 'help-modal';
     helpModal.innerHTML = `
@@ -1544,7 +1544,7 @@
     `;
     document.body.appendChild(helpModal);
 
-    
+
     const style = document.createElement('style');
     style.textContent = `
         .help-modal {
@@ -1650,7 +1650,7 @@
     `;
     document.head.appendChild(style);
 
-    
+
     helpBtn.addEventListener('click', () => {
         helpModal.style.display = 'block';
     });
@@ -1659,21 +1659,21 @@
         helpModal.style.display = 'none';
     });
 
-    
+
     helpModal.addEventListener('click', (e) => {
         if (e.target === helpModal) {
             helpModal.style.display = 'none';
         }
     });
 
-    
+
     document.addEventListener('keydown', (e) => {
         if (e.key.toLowerCase() === 'h') {
             helpModal.style.display = helpModal.style.display === 'none' ? 'block' : 'none';
         }
     });
 
-    
+
     const contextMenu = document.createElement('div');
     contextMenu.className = 'context-menu';
     contextMenu.innerHTML = `
@@ -1682,7 +1682,7 @@
     contextMenu.style.display = 'none';
     document.body.appendChild(contextMenu);
 
-    
+
     const contextMenuStyle = document.createElement('style');
     contextMenuStyle.textContent = `
         .context-menu {
@@ -1709,55 +1709,55 @@
     `;
     document.head.appendChild(contextMenuStyle);
 
-    
+
     canvas.addEventListener('contextmenu', (event) => {
         event.preventDefault();
-        
+
         if (network.isSimulationRunning) return;
-        
+
         const rect = canvas.getBoundingClientRect();
         const x = (event.clientX - rect.left - visualization.offset.x) / visualization.scale;
         const y = (event.clientY - rect.top - visualization.offset.y) / visualization.scale;
-        
-        
+
+
         let clickedOnNode = false;
         for (const node of network.nodes.values()) {
             const dx = x - node.x;
             const dy = y - node.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < 20) { 
+            if (distance < 20) {
                 clickedOnNode = true;
                 break;
             }
         }
-        
+
         if (!clickedOnNode) {
             contextMenu.style.display = 'block';
             contextMenu.style.left = `${event.clientX}px`;
             contextMenu.style.top = `${event.clientY}px`;
-            
-            
+
+
             contextMenu.dataset.x = x;
             contextMenu.dataset.y = y;
         }
     });
 
-    
+
     document.addEventListener('click', (event) => {
         if (!contextMenu.contains(event.target)) {
             contextMenu.style.display = 'none';
         }
     });
 
-    
+
     document.getElementById('addNodeContext').addEventListener('click', () => {
         const x = parseFloat(contextMenu.dataset.x);
         const y = parseFloat(contextMenu.dataset.y);
-        
-        
+
+
         const minDistance = 50;
         let tooClose = false;
-        
+
         for (const node of network.nodes.values()) {
             const dx = x - node.x;
             const dy = y - node.y;
@@ -1767,7 +1767,7 @@
                 break;
             }
         }
-        
+
         if (!tooClose) {
             const node = network.addNode(x, y);
             network.selectedNode = node;
@@ -1780,11 +1780,11 @@
         } else {
             alert('Cannot add node: Too close to existing nodes');
         }
-        
+
         contextMenu.style.display = 'none';
     });
 
-    
+
     const pathFinderContainer = document.createElement('div');
     pathFinderContainer.className = 'path-finder-container';
     pathFinderContainer.innerHTML = `
@@ -1804,12 +1804,12 @@
         </div>
     `;
 
-    
+
     const pathFinderStyle = document.createElement('style');
     pathFinderStyle.textContent = `
         .path-finder-container {
             position: absolute;
-            top: 65px; 
+            top: 155px; 
             left: 10px; 
             background-color: #2d2d2d;
             border: 1px solid #4CAF50;
@@ -1891,58 +1891,58 @@
     document.body.appendChild(pathFinderContainer);
     document.head.appendChild(pathFinderStyle);
 
-    
+
     function updateNodeSelectors() {
         const sourceSelect = document.getElementById('sourceNodeSelect');
         const destSelect = document.getElementById('destNodeSelect');
-        
-        
+
+
         const currentSource = sourceSelect.value;
         const currentDest = destSelect.value;
-        
-        
+
+
         sourceSelect.innerHTML = '';
         destSelect.innerHTML = '';
-        
-        
+
+
         for (const nodeId of network.nodes.keys()) {
             const sourceOption = document.createElement('option');
             sourceOption.value = nodeId;
             sourceOption.text = `Router ${nodeId}`;
             sourceSelect.appendChild(sourceOption);
-            
+
             const destOption = document.createElement('option');
             destOption.value = nodeId;
             destOption.text = `Router ${nodeId}`;
             destSelect.appendChild(destOption);
         }
-        
-        
+
+
         if (currentSource && [...network.nodes.keys()].includes(parseInt(currentSource))) {
             sourceSelect.value = currentSource;
         }
-        
+
         if (currentDest && [...network.nodes.keys()].includes(parseInt(currentDest))) {
             destSelect.value = currentDest;
         }
     }
 
-    
+
     document.getElementById('findPathBtn').addEventListener('click', () => {
-        
+
         if (!network.isSimulationComplete) {
             alert('Cannot find path: Complete LSA flooding first');
             return;
         }
-        
+
         const sourceId = parseInt(document.getElementById('sourceNodeSelect').value);
         const destId = parseInt(document.getElementById('destNodeSelect').value);
-        
+
         if (sourceId === destId) {
             alert('Source and destination cannot be the same');
             return;
         }
-        
+
         visualization.findAndShowPath(sourceId, destId);
     });
 
@@ -1950,26 +1950,26 @@
         visualization.clearPath();
     });
 
-    
+
     const origAddNode = network.addNode;
-    network.addNode = function(x, y, explicitId = null) {
+    network.addNode = function (x, y, explicitId = null) {
         const node = origAddNode.call(this, x, y, explicitId);
         updateNodeSelectors();
         return node;
     };
 
     const origRemoveNode = network.removeNode;
-    network.removeNode = function(nodeId) {
+    network.removeNode = function (nodeId) {
         origRemoveNode.call(this, nodeId);
         updateNodeSelectors();
     };
 
-    
+
     setTimeout(updateNodeSelectors, 0);
 
-    
+
     window.addEventListener('load', () => {
-        
+
         document.querySelectorAll('[title]').forEach(el => {
             if (el.title) {
                 el.setAttribute('data-tooltip', el.title);
@@ -1977,84 +1977,84 @@
             }
         });
 
-        
+
         network.simulationPhase = null;
         network.helloPhaseComplete = false;
         network.lsaPhaseComplete = false;
         network.isSimulationRunning = false;
         network.isSimulationComplete = false;
-        
-        
+
+
         if (startHelloBtn) {
             startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
             startHelloBtn.classList.remove('active');
             startHelloBtn.disabled = false;
             startHelloBtn.removeAttribute('data-tooltip');
         }
-        
+
         if (startLSABtn) {
             startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
             startLSABtn.classList.remove('active');
             startLSABtn.disabled = true;
             updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
         }
-        
+
         if (pauseSimulationBtn) {
             pauseSimulationBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
             pauseSimulationBtn.classList.remove('active');
             pauseSimulationBtn.disabled = true;
             updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
         }
-        
-        
+
+
         const pathFinderInfo = document.querySelector('.path-finder-info');
         if (pathFinderInfo) {
             pathFinderInfo.textContent = 'Complete LSA flooding to enable path finding';
             pathFinderInfo.style.color = '#ff9800';
         }
-        
+
         const sourceSelect = document.getElementById('sourceNodeSelect');
         const destSelect = document.getElementById('destNodeSelect');
         const findPathBtn = document.getElementById('findPathBtn');
         const clearPathBtn = document.getElementById('clearPathBtn');
-        
+
         if (sourceSelect) sourceSelect.disabled = true;
         if (destSelect) destSelect.disabled = true;
         if (findPathBtn) findPathBtn.disabled = true;
         if (clearPathBtn) clearPathBtn.disabled = true;
-        
-        
+
+
         if (visualization) {
             visualization.clearPath();
         }
-        
+
         network.logger.log('SYSTEM', 'Page refreshed, simulation states reset');
     });
 
-    
+
     resetSimulationBtn.addEventListener('click', () => {
         if (!network.isSimulationRunning && confirm('Reset simulation state? This will keep your network topology but clear all simulation data.')) {
-            
+
             resetSimulationState();
-            
+
             network.logger.log('NETWORK', 'Simulation state reset, network topology preserved');
         }
     });
-    
-    
+
+
     function resetSimulationState() {
-        
+
         network.helloPackets = [];
         network.lsaPackets = [];
-        
-        
+
+
         network.isSimulationRunning = false;
         network.isSimulationComplete = false;
         network.simulationPhase = null;
         network.helloPhaseComplete = false;
         network.lsaPhaseComplete = false;
-        
-        
+
+
         for (const node of network.nodes.values()) {
             node.lsa_seq = 0;
             node.lsa_db = {};
@@ -2063,49 +2063,49 @@
             node.routingTable.clear();
             node.isActive = false;
         }
-        
-        
+
+
         startHelloBtn.innerHTML = '<i class="fas fa-play"></i> Start Hello Phase';
         startHelloBtn.classList.remove('active');
         startHelloBtn.disabled = false;
         startHelloBtn.removeAttribute('data-tooltip');
-        
+
         startLSABtn.innerHTML = '<i class="fas fa-play"></i> Start Flooding';
         startLSABtn.classList.remove('active');
         startLSABtn.disabled = true;
         updateDisabledButtonTooltip(startLSABtn, 'Complete Hello Phase first');
-        
+
         pauseSimulationBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
         pauseSimulationBtn.classList.remove('active');
         pauseSimulationBtn.disabled = true;
         updateDisabledButtonTooltip(pauseSimulationBtn, 'Simulation is paused');
-        
-        
+
+
         const pathFinderInfo = document.querySelector('.path-finder-info');
         if (pathFinderInfo) {
             pathFinderInfo.textContent = 'Complete LSA flooding to enable path finding';
             pathFinderInfo.style.color = '#ff9800';
         }
-        
+
         const sourceSelect = document.getElementById('sourceNodeSelect');
         const destSelect = document.getElementById('destNodeSelect');
         const findPathBtn = document.getElementById('findPathBtn');
         const clearPathBtn = document.getElementById('clearPathBtn');
-        
+
         if (sourceSelect) sourceSelect.disabled = true;
         if (destSelect) destSelect.disabled = true;
         if (findPathBtn) findPathBtn.disabled = true;
         if (clearPathBtn) clearPathBtn.disabled = true;
-        
-        
+
+
         visualization.clearPath();
-        
-        
+
+
         if (network.selectedNode) {
             visualization.updateNodeDetails(network.selectedNode);
         }
-        
-        
+
+
         visualization.render();
     }
 }); 
