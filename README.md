@@ -6,6 +6,50 @@ An interactive web-based simulator for understanding and visualizing link-state 
 
 [https://link-state-routing-simulation.vercel.app/](https://link-state-routing-simulation.vercel.app/)
 
+## Installation
+
+To run this project locally:
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/eclipse1605/link-state-routing-protocol.git
+   cd link-state-routing-protocol
+   ```
+
+2. **Serve the files**:
+   First, navigate to the public directory:
+   ```bash
+   cd public
+   ```
+
+   Then use any of these local development server options:
+
+   - Using Python (Python 3):
+     ```bash
+     python -m http.server 8000
+     ```
+
+   - Using Node.js (with `http-server`):
+     ```bash
+     # Install http-server globally if you haven't already
+     npm install -g http-server
+     # Run the server
+     http-server
+     ```
+
+   - Using PHP:
+     ```bash
+     php -S localhost:8000
+     ```
+
+3. **Access the application**:
+   Open your web browser and navigate to:
+   - If using Python: `http://localhost:8000/index.html`
+   - If using http-server: `http://localhost:8080`
+   - If using PHP: `http://localhost:8000/index.html`
+
+The simulator will now be running locally on your machine!
+
 ## Features
 
 ### Network Manipulation
@@ -94,13 +138,3 @@ The simulator implements the Link-State Routing protocol with the following comp
 - Implements real-time graph visualization
 - Supports dynamic network topology changes
 - Provides interactive user interface for network manipulation
-
-## To be implemented
-
-1. Fixing import and export feature
-2. Fixing undo and redo features
-3. Refactoring the code to be more consistent
-4. Improved Error handling
-5. More intuitive controls
-6. Guide to keybindings
-7. Custom keybindings
