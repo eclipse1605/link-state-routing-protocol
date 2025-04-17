@@ -45,7 +45,7 @@ To run this project locally:
 3. **Access the application**:
    Open your web browser and navigate to:
    - If using Python: `http://localhost:8000/index.html`
-   - If using http-server: `http://localhost:8080/index.html`
+   - If using http-server: `http://localhost:8080`
    - If using PHP: `http://localhost:8000/index.html`
 
 The simulator will now be running locally on your machine!
