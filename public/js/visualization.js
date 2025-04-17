@@ -488,7 +488,6 @@ class Visualization {
                 <h3>Neighbors</h3>
         `;
         
-        
         if (node.neighbors.size > 0) {
             for (const [neighborId, data] of node.neighbors.entries()) {
                 html += `
@@ -516,58 +515,9 @@ class Visualization {
         nodeInfo.innerHTML = html;
         
         
-        let rtHtml = `<h3>Routing Table</h3>`;
-        
-        
-        rtHtml += `
-            <table border="1" cellpadding="5" style="width:100%">
-                <tr>
-                    <th>Destination</th>
-                    <th>Netmask</th>
-                    <th>Gateway</th>
-                    <th>Interface</th>
-                </tr>
-                <tr>
-                    <td>10.0.${node.id}.0</td>
-                    <td>255.255.255.0</td>
-                    <td>10.0.${node.id}.1</td>
-                    <td>eth0</td>
-                </tr>
-        `;
-        
-        
-        if (node.routingTable.size > 0) {
-            for (const [destId, route] of node.routingTable.entries()) {
-                rtHtml += `
-                    <tr>
-                        <td>10.0.${destId}.0</td>
-                        <td>255.255.255.0</td>
-                        <td>${route.nextHop === node.id ? '10.0.' + node.id + '.1' : '10.0.' + route.nextHop + '.1'}</td>
-                        <td>eth0</td>
-                    </tr>
-                `;
-            }
+        if (typeof window.updateRoutingTableDisplay === 'function') {
+            window.updateRoutingTableDisplay(node);
         }
-        
-        rtHtml += `</table>`;
-        
-        
-        if (node.routingTable.size > 0) {
-            rtHtml += `<h3>Path Information</h3>`;
-            for (const [destId, route] of node.routingTable.entries()) {
-                rtHtml += `
-                    <div style="margin-bottom:10px">
-                        <div>Router ${destId} (10.0.${destId}.0/24) - Cost: ${route.cost}</div>
-                        <div>Path: ${route.path.join(' → ')}</div>
-                        <div>Next Hop: Router ${route.nextHop} (10.0.${route.nextHop}.1)</div>
-                    </div>
-                `;
-            }
-        } else {
-            rtHtml += `<div>No routes available</div>`;
-        }
-        
-        routingTable.innerHTML = rtHtml;
     }
 
     render() {

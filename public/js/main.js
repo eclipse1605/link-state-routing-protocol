@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const logger = network.logger;
 
     visualization.resetView();
+    
+    
+    window.visualization = visualization;
 
     const history = {
         past: [],
@@ -230,29 +233,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    function updateRoutingTableDisplay(node) {
+    
+    window.updateRoutingTableDisplay = function(node) {
         const routingTableDiv = document.getElementById('routingTable');
+        let html = '';
+        console.log('updateRoutingTableDisplay called with node:', node ? node.id : 'none');
+        console.log('isFloodingComplete status:', network.isFloodingComplete);
+        
         if (!node) {
             routingTableDiv.innerHTML = 'No routing information available';
             return;
         }
-
-
-        if (network.isSimulationRunning) {
-            if (network.simulationPhase === 'hello') {
-                routingTableDiv.innerHTML = '<div class="route-status">Live Routing Table (Hello Phase in Progress)</div><div class="no-route">Routing table will be available after LSA flooding completes.</div>';
-                return;
-            }
-            if (network.simulationPhase === 'lsa' && !network.lsaPhaseComplete) {
-                routingTableDiv.innerHTML = '<div class="route-status">LSA Flooding In Progress</div><div class="no-route">Routing table will be available after LSA flooding completes.</div>';
-                return;
-            }
+        else if (!network.isFloodingComplete) {
+            console.log('Routing table not displayed - flooding not complete');
+            routingTableDiv.innerHTML = '<div class="route-status">Routing Table Unavailable</div><div class="no-route">Routing table will be available after LSA flooding completes.</div>';
+            return;
         }
-
-        let html = '';
-        if (node.routingTable.size === 0) {
-            html = '<div class="no-route">No routes available</div>';
-        } else {
+        else {
             html += `
                 <table class="routing-table">
                     <thead>
@@ -343,30 +340,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 </tr>
             `;
 
-            html += `
-                    </tbody>
-                </table>
-            `;
-
+            
+            html += `</tbody></table>`;
+            html += `<div class="network-converged-message" style="margin-top:10px; color:#4CAF50; font-weight:bold;">Network has converged. All shortest paths are now available below.</div>`;
             html += `<div class="path-info-header">Path Information</div>`;
 
+            
+            
+            console.log("Routing Table for node", node.id, Array.from(node.routingTable.entries()));
+            let hasAnyPath = false;
             for (const [destId, route] of node.routingTable) {
-                const costDisplay = route.cost === Infinity ?
-                    '<span class="infinity-symbol">∞</span>' : route.cost;
-
-                html += `
-                    <div class="route-entry">
-                        <div class="route-header">
-                            <span class="route-destination">Router ${destId}</span>
-                            <span class="route-cost">Cost: ${costDisplay}</span>
-                        </div>
-                        <div class="route-details">
-                            <div class="route-path">
-                                Path: ${route.path.map(id => `Router ${id}`).join(' <span class="path-arrow">→</span> ')}
+                if (route.path && route.path.length > 0 && destId != node.id) {
+                    hasAnyPath = true;
+                    const costDisplay = route.cost === Infinity ? '<span class="infinity-symbol">∞</span>' : route.cost;
+                    html += `
+                        <div class="route-entry">
+                            <div class="route-header">
+                                <span class="route-destination">Router ${destId}</span>
+                                <span class="route-cost">Cost: ${costDisplay}</span>
+                            </div>
+                            <div class="route-details">
+                                <div class="route-path">
+                                    Path: ${route.path.map(id => `Router ${id}`).join(' <span class="path-arrow">→</span> ')}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
+            }
+            if (!hasAnyPath) {
+                html += `<div class="route-entry"><div class="route-header"><span>No paths available from this node.</span></div></div>`;
             }
         }
         routingTableDiv.innerHTML = html;
@@ -1099,7 +1102,8 @@ document.addEventListener('DOMContentLoaded', () => {
             y: node.y,
             neighbors: Array.from(node.neighbors.entries()).map(([neighborId, data]) => ({
                 id: neighborId,
-                weight: data.weight
+                weight: data.weight,
+                isBidirectional: data.isBidirectional || false
             })),
             isActive: node.isActive
         })),
@@ -1351,19 +1355,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function exportNetwork() {
         const networkState = {
-            nodes: Array.from(network.nodes.entries()).map(([id, node]) => ({
+            nodes: Array.from(network.nodes.values()).map(node => ({
                 id: node.id,
                 x: node.x,
                 y: node.y,
+                isActive: node.isActive,
                 neighbors: Array.from(node.neighbors.entries()).map(([neighborId, data]) => ({
                     id: neighborId,
                     weight: data.weight,
-                    isBidirectional: network.nodes.get(neighborId)?.neighbors.has(node.id) || false
+                    isBidirectional: data.isBidirectional
                 })),
-                isActive: node.isActive
+                lsa_seq: node.lsa_seq,
+                lsa_db: node.lsa_db ? JSON.parse(JSON.stringify(node.lsa_db)) : {},
+                routingTable: node.routingTable ? Array.from(node.routingTable.entries()) : [],
+                received_lsas: node.received_lsas ? Array.from(node.received_lsas) : [],
+                lsa_age: node.lsa_age ? Array.from(node.lsa_age.entries()) : []
             })),
+            selectedNodeId: network.selectedNode ? network.selectedNode.id : null,
             nextNodeId: network.nextNodeId,
-            version: "1.0"
+            version: "2.0"
         };
 
         const jsonString = JSON.stringify(networkState, null, 2);
@@ -1391,25 +1401,11 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const networkState = JSON.parse(e.target.result);
 
-
                 if (!networkState.nodes || !Array.isArray(networkState.nodes)) {
                     throw new Error('Invalid network state format');
                 }
 
-
-                let maxNodeId = 0;
-                for (const nodeData of networkState.nodes) {
-
-                    const numericId = Number(nodeData.id);
-                    if (!isNaN(numericId) && numericId > maxNodeId) maxNodeId = numericId;
-                }
-                if (typeof networkState.nextNodeId === 'number' && networkState.nextNodeId > maxNodeId) {
-                    network.nextNodeId = networkState.nextNodeId;
-                } else {
-                    network.nextNodeId = maxNodeId + 1;
-                }
                 network.resetSimulationState(true);
-
 
                 const nodeMap = new Map();
                 for (const nodeData of networkState.nodes) {
@@ -1426,35 +1422,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const processedEdges = new Set();
                 for (const nodeData of networkState.nodes) {
-                    const sourceNode = nodeMap.get(Number(nodeData.id));
+                    const sourceId = Number(nodeData.id);
+                    const sourceNode = nodeMap.get(sourceId);
                     if (!sourceNode) continue;
-
-
-                    sourceNode.neighbors.clear();
-                    sourceNode.lsa_db = {};
 
                     if (!nodeData.neighbors || !Array.isArray(nodeData.neighbors)) continue;
 
                     for (const neighbor of nodeData.neighbors) {
-
+                        const targetId = Number(neighbor.id);
                         if (typeof neighbor.id === 'undefined' || typeof neighbor.weight !== 'number') continue;
-                        const targetNode = nodeMap.get(Number(neighbor.id));
-                        if (!targetNode) continue;
-
-
-                        const edgeId = [Math.min(Number(nodeData.id), Number(neighbor.id)), Math.max(Number(nodeData.id), Number(neighbor.id))].join('-');
-
-
+                        const edgeId = [Math.min(sourceId, targetId), Math.max(sourceId, targetId)].join('-');
                         if (processedEdges.has(edgeId)) continue;
 
-
-                        network.connectNodes(
-                            Number(nodeData.id),
-                            Number(neighbor.id),
-                            neighbor.weight,
-                            neighbor.isBidirectional
-                        );
-
+                        
+                        if (neighbor.isBidirectional) {
+                            network.connectNodes(sourceId, targetId, neighbor.weight, true);
+                        } else {
+                            network.connectNodes(sourceId, targetId, neighbor.weight, false);
+                        }
                         processedEdges.add(edgeId);
                     }
                 }

@@ -20,6 +20,7 @@ class Network {
         this.nodesInOrder = []; 
         this.helloPhaseComplete = false;
         this.lsaPhaseComplete = false;
+        this.isFloodingComplete = false; 
         this.isPaused = false;
         this.maxAge = 0;  
     }
@@ -54,12 +55,12 @@ class Network {
             return false;
         }
         
-        node1.neighbors.set(node2Id, { weight: weight });
+        node1.neighbors.set(node2Id, { weight: weight, isBidirectional: !!isBidirectional });
         node1.lsa_seq++;
         node1.lsa_db[node2Id] = { weight: weight, timestamp: Date.now() };
         
         if (isBidirectional) {
-            node2.neighbors.set(node1Id, { weight: weight });
+            node2.neighbors.set(node1Id, { weight: weight, isBidirectional: true });
             node2.lsa_seq++;
             node2.lsa_db[node1Id] = { weight: weight, timestamp: Date.now() };
         }
@@ -86,13 +87,16 @@ class Network {
         
         const oldWeight = node1.neighbors.get(node2Id).weight;
         
-        node1.neighbors.get(node2Id).weight = weight;
+        if (node1.neighbors.has(node2Id)) {
+            const isBidirectional = node1.neighbors.get(node2Id).isBidirectional;
+            node1.neighbors.set(node2Id, { weight: weight, isBidirectional });
+        }
         node1.lsa_seq++;
         node1.lsa_db[node2Id] = { weight: weight, timestamp: Date.now() };
         
-        
         if (node2.neighbors.has(node1Id)) {
-            node2.neighbors.get(node1Id).weight = weight;
+            const isBidirectional = node2.neighbors.get(node1Id).isBidirectional;
+            node2.neighbors.set(node1Id, { weight: weight, isBidirectional });
             node2.lsa_seq++;
             node2.lsa_db[node1Id] = { weight: weight, timestamp: Date.now() };
         }
@@ -164,9 +168,11 @@ class Network {
         this.isPaused = false;
         this.lsaPackets = [];
         this.lsaPhaseComplete = false;
+        this.isFloodingComplete = false; 
         this.currentNodeIndex = 0;
         this.nodesInOrder = Array.from(this.nodes.values());
         this.currentNodeComplete = false;
+        console.log('Starting LSA Phase - isFloodingComplete reset to false');
         
         
         for (const node of this.nodes.values()) {
@@ -182,10 +188,18 @@ class Network {
     }
 
     startNextNodeLSA() {
+        console.log('[startNextNodeLSA] Called. currentNodeIndex:', this.currentNodeIndex, 'nodesInOrder.length:', this.nodesInOrder.length, 'lsaPhaseComplete:', this.lsaPhaseComplete);
+
         if (this.currentNodeIndex >= this.nodesInOrder.length) {
             
-            this.lsaPhaseComplete = true;
-            this.logger.log('NETWORK', 'All nodes have completed their LSA floods');
+            if (!this.lsaPhaseComplete) {
+                this.lsaPhaseComplete = true;
+                this.logger.log('NETWORK', '[DEFENSIVE] All nodes have completed their LSA floods (safeguard)');
+                console.log('[startNextNodeLSA] Forcing processLSAPhase() after LSA complete');
+                this.processLSAPhase(); 
+            } else {
+                this.logger.log('NETWORK', '[INFO] LSA phase already marked complete.');
+            }
             return;
         }
 
@@ -232,12 +246,42 @@ class Network {
             for (const node of this.nodes.values()) {
                 node.updateRoutingTable();
             }
+            
             this.logger.log('ROUTING', 'All routing tables updated using Dijkstra after LSA flooding');
             this.stopSimulation();
             this.logger.log('NETWORK', 'LSA flooding phase complete');
+            
+            
+            this.isFloodingComplete = true;
+            window.network = this; 
+            
+            
+            console.log('Setting isFloodingComplete to true');
+            console.log('Selected node:', this.selectedNode ? this.selectedNode.id : 'none');
+            console.log('Routing table entries:', this.selectedNode ? this.selectedNode.routingTable.size : 0);
+            
+            
+            setTimeout(() => {
+                console.log('Executing deferred routing table update');
+                if (this.selectedNode) {
+                    if (typeof window.updateRoutingTableDisplay === 'function') {
+                        console.log('Using window.updateRoutingTableDisplay');
+                        window.updateRoutingTableDisplay(this.selectedNode);
+                    } else if (typeof window.visualization !== 'undefined') {
+                        console.log('Using visualization.updateNodeDetails');
+                        window.visualization.updateNodeDetails(this.selectedNode);
+                    }
+                }
+            }, 100);
+            
             return;
         }
-
+        
+        
+        if (this.lsaPackets.length === 0 && !this.lsaPhaseComplete && this.simulationPhase === 'lsa') {
+            console.log('[processLSAPhase] Fallback triggered: LSA queue empty, marking lsaPhaseComplete = true');
+            this.lsaPhaseComplete = true;
+        }
         
         for (let i = this.lsaPackets.length - 1; i >= 0; i--) {
             const packet = this.lsaPackets[i];
@@ -296,7 +340,7 @@ class Network {
             );
             
             if (allReachableNodesHaveCurrentLSA) {
-                this.logger.log('NETWORK', `Router ${currentNode.id} completed LSA flood`);
+                this.logger.log('NETWORK', `Router ${currentNode.id} completed LSA flood, moving to next node. Index now: ${this.currentNodeIndex + 1}`);
                 this.currentNodeIndex++;
                 this.startNextNodeLSA();
             }
@@ -606,6 +650,7 @@ class Network {
         this.nodesInOrder = [];
         this.helloPhaseComplete = false;
         this.lsaPhaseComplete = false;
+        this.isFloodingComplete = false; 
         this.helloPackets = [];
         this.lsaPackets = [];
         this.convergenceCounter = 0;
